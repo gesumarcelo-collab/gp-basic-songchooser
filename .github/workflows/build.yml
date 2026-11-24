@@ -48,6 +48,7 @@ jobs:
         run: >
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=cl
           -DCMAKE_CXX_COMPILER=cl
           -DGPSDK_DIR="${{ github.workspace }}/gp-sdk"
 
