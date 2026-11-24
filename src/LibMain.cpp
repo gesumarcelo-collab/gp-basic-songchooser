@@ -231,9 +231,19 @@ void LibMain::openWindow()
         return;
     }
 
-    webview = std::make_unique<choc::ui::WebView>();
+    // Criar o WebView pode falhar se o WebView2 Runtime nao estiver instalado.
+    // Em vez de loadedOK() (que nao existe em todas as versoes da CHOC), checamos
+    // se o handle da view e valido; e protegemos com try/catch.
+    try
+    {
+        webview = std::make_unique<choc::ui::WebView>();
+    }
+    catch (...)
+    {
+        webview.reset();
+    }
 
-    if (!webview->loadedOK())
+    if (!webview || webview->getViewHandle() == nullptr)
     {
 #ifdef _WIN32
         OutputDebugStringA("SetlistQueue: WebView2 indisponivel (instale o WebView2 Runtime)\n");
