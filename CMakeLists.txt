@@ -29,15 +29,36 @@ if(NOT EXISTS "${GPSDK_DIR}")
     endif()
 endif()
 
-# Descobre a raiz de include a partir de .../gigperformer/sdk/GigPerformerAPI.h
-file(GLOB_RECURSE _gp_api_hdr "${GPSDK_DIR}/GigPerformerAPI.h")
-list(FILTER _gp_api_hdr EXCLUDE REGEX "[Ee]xample|[Ss]ample|/build/")
-if(NOT _gp_api_hdr)
-    message(FATAL_ERROR "GigPerformerAPI.h nao encontrado em ${GPSDK_DIR}")
-endif()
-list(GET _gp_api_hdr 0 _gp_api_hdr_first)
-get_filename_component(_gp_sdk_hdr_dir "${_gp_api_hdr_first}" DIRECTORY)
-get_filename_component(GPSDK_INCLUDE_DIR "${_gp_sdk_hdr_dir}/../.." ABSOLUTE)
+# ---------------------------------------------------------------------------
+# Pastas de include do SDK.
+# Layout esperado do gp-sdk:
+#   gp-sdk/cpp/include/gigperformer/sdk/GigPerformerAPI.h (e demais headers C++)
+#   gp-sdk/c/include/gigperformer/sdk/types.h, imports.h  (headers C)
+# Alem de listar as duas pastas, descobrimos a raiz de include de cada header
+# procurando no SDK, para o build nao quebrar se o layout mudar.
+# ---------------------------------------------------------------------------
+set(GPSDK_INCLUDE_DIRS "")
+
+foreach(_dir "${GPSDK_DIR}/cpp/include" "${GPSDK_DIR}/c/include" "${GPSDK_DIR}/include")
+    if(EXISTS "${_dir}")
+        list(APPEND GPSDK_INCLUDE_DIRS "${_dir}")
+    endif()
+endforeach()
+
+foreach(_hdr GigPerformerAPI.h types.h imports.h)
+    file(GLOB_RECURSE _found "${GPSDK_DIR}/${_hdr}")
+    list(FILTER _found EXCLUDE REGEX "[Ee]xample|[Ss]ample|/build/")
+    if(NOT _found)
+        message(FATAL_ERROR "${_hdr} nao encontrado em ${GPSDK_DIR}")
+    endif()
+    list(GET _found 0 _first)
+    get_filename_component(_hdr_dir "${_first}" DIRECTORY)           # .../gigperformer/sdk
+    get_filename_component(_root "${_hdr_dir}/../.." ABSOLUTE)       # raiz de include
+    list(APPEND GPSDK_INCLUDE_DIRS "${_root}")
+endforeach()
+
+list(REMOVE_DUPLICATES GPSDK_INCLUDE_DIRS)
+message(STATUS "GP SDK include dirs: ${GPSDK_INCLUDE_DIRS}")
 
 # Fontes .cpp do SDK (ignora exemplos)
 file(GLOB_RECURSE GPSDK_SOURCES "${GPSDK_DIR}/*.cpp")
@@ -81,7 +102,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_SOURCE_DIR}/src"
     "${CMAKE_SOURCE_DIR}/libs"
-    "${GPSDK_INCLUDE_DIR}"
+    ${GPSDK_INCLUDE_DIRS}
     "${GENERATED_DIR}")
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
