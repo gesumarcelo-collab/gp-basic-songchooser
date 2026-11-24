@@ -1,15 +1,38 @@
 #pragma once
 
+// ---------------------------------------------------------------------------
+// ORDEM DOS INCLUDES IMPORTA:
+//   1) biblioteca padrao (a CHOC usa std::function / std::unique_ptr etc.)
+//   2) choc_Platform.h (define as macros de plataforma que choc_WebView.h verifica)
+//   3) headers da CHOC
+//   4) headers do GP SDK
+// ---------------------------------------------------------------------------
+
+// 1) Biblioteca padrao
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+// 2) Deteccao de plataforma da CHOC
+#include "choc/platform/choc_Platform.h"
+
+// 3) CHOC
+#include "choc/containers/choc_Value.h"
+#include "choc/gui/choc_DesktopWindow.h"
+#include "choc/gui/choc_WebView.h"
+
+// 4) GP SDK
 #include "gigperformer/sdk/GPMidiMessages.h"
 #include "gigperformer/sdk/GPUtils.h"
 #include "gigperformer/sdk/GigPerformerAPI.h"
 #include "gigperformer/sdk/types.h"
-
-#include "choc/gui/choc_DesktopWindow.h"
-#include "choc/gui/choc_WebView.h"
-
-#include <memory>
-#include <string>
 
 class LibMain : public gigperformer::sdk::GigPerformerAPI
 {
