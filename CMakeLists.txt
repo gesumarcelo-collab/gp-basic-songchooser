@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 3.20)
 set(PROJECT_VERSION "1.0.0")
 set(PROJECT_NAME "SetlistQueue")
 
-project(${PROJECT_NAME} VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+# C e C++: o gp-sdk tem uma parte em C (gp-sdk/c/src) alem da parte C++
+project(${PROJECT_NAME} VERSION ${PROJECT_VERSION} LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,7 +35,7 @@ endif()
 # Layout esperado do gp-sdk:
 #   gp-sdk/cpp/include/gigperformer/sdk/GigPerformerAPI.h (e demais headers C++)
 #   gp-sdk/c/include/gigperformer/sdk/types.h, imports.h  (headers C)
-# Alem de listar as duas pastas, descobrimos a raiz de include de cada header
+# Alem de listar as pastas, descobrimos a raiz de include de cada header
 # procurando no SDK, para o build nao quebrar se o layout mudar.
 # ---------------------------------------------------------------------------
 set(GPSDK_INCLUDE_DIRS "")
@@ -60,12 +61,31 @@ endforeach()
 list(REMOVE_DUPLICATES GPSDK_INCLUDE_DIRS)
 message(STATUS "GP SDK include dirs: ${GPSDK_INCLUDE_DIRS}")
 
-# Fontes .cpp do SDK (ignora exemplos)
-file(GLOB_RECURSE GPSDK_SOURCES "${GPSDK_DIR}/*.cpp")
-list(FILTER GPSDK_SOURCES EXCLUDE REGEX "[Ee]xample|[Ss]ample|/build/|/[Tt]est")
-if(NOT GPSDK_SOURCES)
+# ---------------------------------------------------------------------------
+# Fontes do SDK: C++ (gp-sdk/cpp/src) e C (gp-sdk/c/src)
+# ---------------------------------------------------------------------------
+# C++ (ignora exemplos)
+file(GLOB_RECURSE GPSDK_CPP_SOURCES "${GPSDK_DIR}/*.cpp")
+list(FILTER GPSDK_CPP_SOURCES EXCLUDE REGEX "[Ee]xample|[Ss]ample|/build/|/[Tt]est")
+if(NOT GPSDK_CPP_SOURCES)
     message(FATAL_ERROR "Nenhum .cpp do SDK encontrado em ${GPSDK_DIR}")
 endif()
+
+# C: imports.c, utils.c etc. (implementam as funcoes GP_* e hex2bin)
+if(EXISTS "${GPSDK_DIR}/c/src")
+    file(GLOB_RECURSE GPSDK_C_SOURCES "${GPSDK_DIR}/c/src/*.c")
+else()
+    file(GLOB_RECURSE GPSDK_C_SOURCES "${GPSDK_DIR}/*.c")
+endif()
+list(FILTER GPSDK_C_SOURCES EXCLUDE REGEX "[Ee]xample|[Ss]ample|/build/|/[Tt]est")
+if(NOT GPSDK_C_SOURCES)
+    message(FATAL_ERROR "Nenhum .c do SDK encontrado em ${GPSDK_DIR} (esperado em c/src)")
+endif()
+
+message(STATUS "GP SDK C++ sources: ${GPSDK_CPP_SOURCES}")
+message(STATUS "GP SDK C sources:   ${GPSDK_C_SOURCES}")
+
+set(GPSDK_SOURCES ${GPSDK_CPP_SOURCES} ${GPSDK_C_SOURCES})
 
 # ---------------------------------------------------------------------------
 # Embute ui/index.html como array de bytes (sem limite de tamanho de string)
@@ -112,7 +132,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     _UNICODE)
 
 if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE /utf-8 /EHsc /W3)
+    target_compile_options(${PROJECT_NAME} PRIVATE /utf-8 /W3
+        $<$<COMPILE_LANGUAGE:CXX>:/EHsc>)
 endif()
 
 if(WIN32)
