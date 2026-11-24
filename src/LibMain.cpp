@@ -1,3 +1,5 @@
+// Inclua SEMPRE o LibMain.h primeiro: ele ja traz os headers padrao,
+// choc_Platform.h e a CHOC na ordem correta, antes do GP SDK.
 #include "LibMain.h"
 #include "webcontent.h" // gerado pelo CMake a partir de ui/index.html
 
@@ -5,7 +7,9 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
+#include <memory>
 #include <string>
 
 #ifdef _WIN32
