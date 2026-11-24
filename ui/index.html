@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setlist Queue</title>
+<style>
+  :root{
+    --bg:#121212; --fg:#f2f2f2; --font:Arial, Helvetica, sans-serif; --size:28px;
+    --accent:#ffd400; --line:rgba(128,128,128,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);
+    font-family:var(--font);user-select:none;-webkit-user-select:none}
+  [hidden]{display:none !important}
+  #app{display:flex;flex-direction:column;height:100%}
+
+  /* Barra superior (fonte fixa: independe da fonte global das músicas) */
+  #top{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 8px;background:#1e1e1e;
+    color:#ddd;font:14px "Segoe UI",Arial,sans-serif;border-bottom:1px solid #000}
+  #title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  .btn{background:#333;color:#eee;border:1px solid #555;border-radius:6px;padding:5px 10px;
+    font:inherit;cursor:pointer}
+  .btn:hover{background:#444}
+  .btn.icon{padding:2px 9px;font-size:19px;line-height:1.2}
+
+  /* Lista */
+  #list{flex:1 1 auto;overflow-y:auto;overflow-x:hidden}
+  #empty{padding:24px;opacity:.7;font:16px "Segoe UI",Arial,sans-serif}
+  .song{position:relative;display:flex;align-items:center;gap:6px;
+    padding:.4em 8px .4em 26px;border-bottom:1px solid var(--line);cursor:pointer;min-height:2.1em}
+  .song .name{flex:1;min-width:0;overflow-wrap:anywhere}
+  .song .tool{flex:0 0 auto;opacity:.5;cursor:pointer;padding:0 6px;font-size:max(16px,.6em);line-height:1}
+  .song .tool:hover{opacity:1}
+  .song .handle{cursor:grab;touch-action:none;font-size:max(18px,.7em)}
+  .song.dragging{opacity:.85;outline:2px dashed var(--accent);outline-offset:-2px}
+
+  /* Música atual: faixa grossa à esquerda + brilho; NÃO altera a cor de fundo da música */
+  .song.current{
+    box-shadow:
+      inset 14px 0 0 0 var(--accent),
+      inset 17px 0 0 0 #000,
+      inset 0 0 0 2px var(--accent);
+    z-index:1}
+  .song.current .name{font-weight:700}
+
+  /* Painéis (configurações e popover) */
+  .panel{position:fixed;z-index:50;background:#262626;color:#eee;border:1px solid #666;border-radius:10px;
+    padding:12px;font:14px "Segoe UI",Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+  #settings{top:42px;right:8px;width:290px}
+  #pop{width:260px}
+  .panel h4{margin:0 0 10px;font-size:15px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0}
+  .ctl{display:inline-flex;align-items:center;gap:6px}
+  .panel button{background:#3a3a3a;color:#eee;border:1px solid #666;border-radius:6px;padding:4px 10px;
+    font:inherit;cursor:pointer}
+  .panel button:hover{background:#4a4a4a}
+  .panel select,.panel input[type=number]{background:#1a1a1a;color:#eee;border:1px solid #666;border-radius:6px;
+    padding:4px 6px;font:inherit}
+  .panel input[type=number]{width:64px}
+  .panel input[type=color]{width:44px;height:28px;padding:0;border:1px solid #666;background:#1a1a1a;cursor:pointer}
+  .panel input[type=range]{width:100%}
+  .wide{width:100%;margin-top:6px}
+  .danger{border-color:#a33 !important}
+  .danger.armed{background:#b00020 !important;border-color:#ff6b6b !important;font-weight:700}
+  .ptitle{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;font-weight:700}
+  .ptitle span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <span id="title">Setlist atual</span>
+    <button class="btn" id="resetOrder" title="Voltar à ordem original do setlist">Resetar Ordem</button>
+    <button class="btn icon" id="gearBtn" title="Configurações">&#9881;</button>
+  </div>
+  <div id="list"></div>
+</div>
+
+<!-- Configurações globais -->
+<div id="settings" class="panel" hidden>
+  <h4>Configurações globais</h4>
+  <div class="row"><span>Fonte</span><select id="fontSel"></select></div>
+  <div class="row">
+    <span>Tamanho padrão</span>
+    <span class="ctl"><button id="gMinus">&minus;</button><b id="gSizeVal">28</b> px<button id="gPlus">+</button></span>
+  </div>
+  <input type="range" id="gSize" min="12" max="48" step="1">
+  <div class="row"><span>Cor de fundo da janela</span><input type="color" id="gBg"></div>
+  <div class="row"><span>Cor padrão do texto</span><input type="color" id="gFg"></div>
+  <button class="wide danger" id="resetAll">Resetar Tudo (Cores e Fontes)</button>
+</div>
+
+<!-- Personalização por música -->
+<div id="pop" class="panel" hidden>
+  <div class="ptitle"><span id="pName"></span><button id="pClose">&times;</button></div>
+  <div class="row"><span>Cor de fundo</span><input type="color" id="pBg"></div>
+  <div class="row"><span>Cor do texto</span><input type="color" id="pFg"></div>
+  <div class="row">
+    <span>Tamanho</span>
+    <span class="ctl"><button id="pMinus">&minus;</button><input type="number" id="pSize" min="12" max="56"><button id="pPlus">+</button></span>
+  </div>
+  <button class="wide" id="pReset">Resetar esta música</button>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+const KEY = 'gpq.v1';
+const FACTORY = { font: 'Arial, Helvetica, sans-serif', size: 28, bg: '#121212', color: '#f2f2f2' };
+const FONTS = [
+  ['Arial',       'Arial, Helvetica, sans-serif'],
+  ['Segoe UI',    '"Segoe UI", Arial, sans-serif'],
+  ['Roboto',      'Roboto, "Segoe UI", Arial, sans-serif'],
+  ['Verdana',     'Verdana, Geneva, sans-serif'],
+  ['Tahoma',      'Tahoma, Geneva, sans-serif'],
+  ['Courier New', '"Courier New", Courier, monospace']
+];
+
+const $ = id => document.getElementById(id);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const sk = name => 's:' + name;          // chave por NOME da música (seguro contra "__proto__" etc.)
+
+let store = { global: { ...FACTORY }, songs: {}, order: null };
+let songs = [];      // [{i, n}] na ordem real do GP
+let order = [];      // índices REAIS na ordem visual (fila)
+let current = -1;
+let lastKey = '';
+let popSong = null;  // nome da música com o popover aberto
+
+const listEl = $('list'), titleEl = $('title'), settingsEl = $('settings'), popEl = $('pop');
+
+/* ------------------------------ Persistência ------------------------------ */
+// localStorage + espelho em arquivo (via C++), porque o localStorage do WebView
+// embutido pode não sobreviver entre sessões.
+let saveTimer = null;
+function save() {
+  const s = JSON.stringify(store);
+  try { localStorage.setItem(KEY, s); } catch (e) {}
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { if (window.gp_saveSettings) Promise.resolve(window.gp_saveSettings(s)).catch(() => {}); } catch (e) {}
+  }, 300);
+}
+
+async function load() {
+  let raw = '';
+  try { if (window.gp_loadSettings) raw = await window.gp_loadSettings(); } catch (e) {}
+  if (!raw) { try { raw = localStorage.getItem(KEY) || ''; } catch (e) {} }
+  try {
+    const o = JSON.parse(raw);
+    if (o && typeof o === 'object') {
+      store.global = { ...FACTORY, ...(o.global || {}) };
+      store.songs = (o.songs && typeof o.songs === 'object') ? o.songs : {};
+      store.order = o.order || null;
+    }
+  } catch (e) {}
+  store.global.size = clamp(parseInt(store.global.size, 10) || FACTORY.size, 12, 48);
+}
+
+/* ------------------------------ Estilo ------------------------------ */
+function applyGlobal() {
+  const g = store.global;
+  const r = document.documentElement.style;
+  r.setProperty('--bg', g.bg);
+  r.setProperty('--fg', g.color);
+  r.setProperty('--font', g.font);
+  r.setProperty('--size', g.size + 'px');
+  listEl.querySelectorAll('.song').forEach(restyleRow);
+  syncSettingsUI();
+}
+
+function restyleRow(row) {
+  const s = songs[+row.dataset.idx];
+  const st = (s && store.songs[sk(s.n)]) || {};
+  row.style.fontSize = (st.size || store.global.size) + 'px';
+  row.style.color = st.color || '';
+  row.style.background = st.bg || '';
+}
+
+function restyleByName(name) {
+  listEl.querySelectorAll('.song').forEach(row => {
+    const s = songs[+row.dataset.idx];
+    if (s && s.n === name) restyleRow(row);
+  });
+}
+
+/* ------------------------------ Lista ------------------------------ */
+const signature = () => songs.map(s => s.n).join('\u0001');
+
+function isPermutation(arr, n) {
+  if (!Array.isArray(arr) || arr.length !== n) return false;
+  const seen = new Set(arr);
+  if (seen.size !== n) return false;
+  return arr.every(v => Number.isInteger(v) && v >= 0 && v < n);
+}
+
+function rebuildOrder() {
+  const n = songs.length, o = store.order;
+  if (o && o.sig === signature() && isPermutation(o.idx, n)) order = o.idx.slice();
+  else order = songs.map((_, i) => i);
+}
+
+function renderList() {
+  listEl.innerHTML = '';
+  if (!songs.length) {
+    const d = document.createElement('div');
+    d.id = 'empty';
+    d.textContent = 'Nenhuma música no setlist atual.';
+    listEl.appendChild(d);
+    return;
+  }
+  order.forEach(idx => listEl.appendChild(makeRow(idx)));
+  updateCurrent(false);
+}
+
+function makeRow(idx) {
+  const s = songs[idx];
+  const row = document.createElement('div');
+  row.className = 'song';
+  row.dataset.idx = idx;
+
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = s.n;
+
+  const pal = document.createElement('span');
+  pal.className = 'tool paletteBtn';
+  pal.title = 'Personalizar esta música';
+  pal.textContent = '\uD83C\uDFA8';
+  pal.addEventListener('click', e => {
+    e.stopPropagation();
+    const b = pal.getBoundingClientRect();
+    openPop(idx, b.left, b.bottom + 4);
+  });
+
+  const handle = document.createElement('span');
+  handle.className = 'tool handle';
+  handle.title = 'Arraste para reordenar';
+  handle.textContent = '\u2630';
+  handle.addEventListener('pointerdown', e => startDrag(row, handle, e));
+
+  row.append(name, pal, handle);
+  restyleRow(row);
+
+  row.addEventListener('click', e => {
+    if (e.target.closest('.tool')) return;
+    selectSong(idx);
+  });
+  row.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    openPop(idx, e.clientX, e.clientY);
+  });
+  return row;
+}
+
+function updateCurrent(scroll = true) {
+  let el = null;
+  listEl.querySelectorAll('.song').forEach(row => {
+    const on = (+row.dataset.idx === current);
+    row.classList.toggle('current', on);
+    if (on) el = row;
+  });
+  if (el && scroll) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+async function selectSong(idx) {
+  current = idx;           // feedback imediato
+  lastKey = '';            // força reconciliar com o estado real do GP no próximo ciclo
+  updateCurrent();
+  try { await window.gp_selectSong(String(idx)); } catch (e) {}
+}
+
+/* ------------------------------ Drag & drop (mouse e toque) ------------------------------ */
+function startDrag(row, handle, e) {
+  e.preventDefault();
+  e.stopPropagation();
+  handle.setPointerCapture(e.pointerId);
+  row.classList.add('dragging');
+  let lastY = e.clientY;
+
+  const reposition = () => {
+    const rows = [...listEl.querySelectorAll('.song:not(.dragging)')];
+    let before = null;
+    for (const o of rows) {
+      const b = o.getBoundingClientRect();
+      if (lastY < b.top + b.height / 2) { before = o; break; }
+    }
+    if (before) { if (row.nextSibling !== before) listEl.insertBefore(row, before); }
+    else if (listEl.lastElementChild !== row) listEl.appendChild(row);
+  };
+
+  const onMove = ev => { lastY = ev.clientY; reposition(); };
+  const timer = setInterval(() => {              // autoscroll nas bordas
+    const r = listEl.getBoundingClientRect();
+    if (lastY < r.top + 40) listEl.scrollTop -= 14;
+    else if (lastY > r.bottom - 40) listEl.scrollTop += 14;
+    else return;
+    reposition();
+  }, 30);
+
+  const end = () => {
+    clearInterval(timer);
+    handle.removeEventListener('pointermove', onMove);
+    handle.removeEventListener('pointerup', end);
+    handle.removeEventListener('pointercancel', end);
+    row.classList.remove('dragging');
+    order = [...listEl.querySelectorAll('.song')].map(r => +r.dataset.idx);
+    store.order = { sig: signature(), idx: order.slice() };
+    save();
+  };
+  handle.addEventListener('pointermove', onMove);
+  handle.addEventListener('pointerup', end);
+  handle.addEventListener('pointercancel', end);
+}
+
+$('resetOrder').addEventListener('click', () => {
+  order = songs.map((_, i) => i);
+  store.order = null;
+  save();
+  renderList();
+});
+
+/* ------------------------------ Popover por música ------------------------------ */
+function songStyle(name) { return store.songs[sk(name)] || null; }
+
+function openPop(idx, x, y) {
+  const s = songs[idx];
+  if (!s) return;
+  popSong = s.n;
+  settingsEl.hidden = true;
+  $('pName').textContent = s.n;
+  refreshPop();
+  popEl.hidden = false;
+  const w = popEl.offsetWidth, h = popEl.offsetHeight;
+  popEl.style.left = clamp(x, 6, Math.max(6, window.innerWidth - w - 6)) + 'px';
+  popEl.style.top  = clamp(y, 6, Math.max(6, window.innerHeight - h - 6)) + 'px';
+}
+
+function closePop() { popEl.hidden = true; popSong = null; }
+
+function refreshPop() {
+  if (popSong == null) return;
+  const st = songStyle(popSong) || {};
+  $('pBg').value = st.bg || store.global.bg;
+  $('pFg').value = st.color || store.global.color;
+  $('pSize').value = st.size || store.global.size;
+}
+
+function editSong(patch) {
+  if (popSong == null) return;
+  const k = sk(popSong);
+  store.songs[k] = { ...(store.songs[k] || {}), ...patch };
+  save();
+  restyleByName(popSong);
+}
+
+function setPopSize(v) {
+  v = clamp(Math.round(v) || 12, 12, 56);
+  $('pSize').value = v;
+  editSong({ size: v });
+}
+
+$('pBg').addEventListener('input', e => editSong({ bg: e.target.value }));
+$('pFg').addEventListener('input', e => editSong({ color: e.target.value }));
+$('pSize').addEventListener('change', e => setPopSize(parseFloat(e.target.value)));
+$('pMinus').addEventListener('click', () => setPopSize((parseInt($('pSize').value, 10) || 28) - 2));
+$('pPlus').addEventListener('click',  () => setPopSize((parseInt($('pSize').value, 10) || 28) + 2));
+$('pReset').addEventListener('click', () => {
+  if (popSong == null) return;
+  delete store.songs[sk(popSong)];
+  save();
+  restyleByName(popSong);
+  refreshPop();
+});
+$('pClose').addEventListener('click', closePop);
+
+/* ------------------------------ Configurações globais ------------------------------ */
+FONTS.forEach(([label, stack]) => {
+  const o = document.createElement('option');
+  o.value = stack; o.textContent = label;
+  $('fontSel').appendChild(o);
+});
+
+function syncSettingsUI() {
+  const g = store.global;
+  $('fontSel').value = FONTS.some(f => f[1] === g.font) ? g.font : FACTORY.font;
+  $('gSize').value = g.size;
+  $('gSizeVal').textContent = g.size;
+  $('gBg').value = g.bg;
+  $('gFg').value = g.color;
+}
+
+function setGlobal(patch) {
+  store.global = { ...store.global, ...patch };
+  store.global.size = clamp(parseInt(store.global.size, 10) || FACTORY.size, 12, 48);
+  save();
+  applyGlobal();
+}
+
+$('gearBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  closePop();
+  settingsEl.hidden = !settingsEl.hidden;
+});
+$('fontSel').addEventListener('change', e => setGlobal({ font: e.target.value }));
+$('gSize').addEventListener('input', e => setGlobal({ size: +e.target.value }));
+$('gMinus').addEventListener('click', () => setGlobal({ size: store.global.size - 1 }));
+$('gPlus').addEventListener('click',  () => setGlobal({ size: store.global.size + 1 }));
+$('gBg').addEventListener('input', e => setGlobal({ bg: e.target.value }));
+$('gFg').addEventListener('input', e => setGlobal({ color: e.target.value }));
+
+// Resetar tudo: 1º clique arma (3 s), 2º clique dentro de 3 s executa
+const resetBtn = $('resetAll');
+const RESET_LABEL = 'Resetar Tudo (Cores e Fontes)';
+let armed = false, armTimer = null;
+
+function disarm() {
+  armed = false;
+  clearInterval(armTimer);
+  resetBtn.classList.remove('armed');
+  resetBtn.textContent = RESET_LABEL;
+}
+
+resetBtn.addEventListener('click', () => {
+  if (!armed) {
+    armed = true;
+    let left = 3;
+    resetBtn.classList.add('armed');
+    resetBtn.textContent = 'Clique de novo para confirmar (' + left + ')';
+    armTimer = setInterval(() => {
+      left--;
+      if (left <= 0) disarm();
+      else resetBtn.textContent = 'Clique de novo para confirmar (' + left + ')';
+    }, 1000);
+    return;
+  }
+  disarm();
+  store.songs = {};                  // todas as cores/tamanhos individuais
+  store.global = { ...FACTORY };     // tema de fábrica
+  save();
+  closePop();
+  applyGlobal();
+});
+
+/* ------------------------------ Fechar painéis / teclado ------------------------------ */
+document.addEventListener('pointerdown', e => {
+  if (!popEl.hidden && !popEl.contains(e.target) && !e.target.closest('.paletteBtn')) closePop();
+  if (!settingsEl.hidden && !settingsEl.contains(e.target) && !e.target.closest('#gearBtn')) {
+    settingsEl.hidden = true; disarm();
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closePop(); settingsEl.hidden = true; disarm(); }
+});
+
+/* ------------------------------ Estado vindo do Gig Performer ------------------------------ */
+function applyState(st) {
+  if (!st || !Array.isArray(st.songs)) return;
+  const key = JSON.stringify(st);
+  if (key === lastKey) return;
+  lastKey = key;
+
+  const listChanged = JSON.stringify(st.songs) !== JSON.stringify(songs);
+  current = (typeof st.current === 'number') ? st.current : -1;
+  titleEl.textContent = st.setlist || 'Setlist atual';
+
+  if (listChanged) {
+    songs = st.songs;
+    rebuildOrder();
+    renderList();
+  } else {
+    updateCurrent();
+  }
+}
+
+window.gpPush = applyState;   // chamado pelo C++ em OnSongChanged / OnSetlistChanged
+
+async function poll() {       // rede de segurança caso algum evento não chegue
+  try { applyState(JSON.parse(await window.gp_getState())); } catch (e) {}
+}
+
+/* ------------------------------ Inicialização ------------------------------ */
+async function init() {
+  if (typeof window.gp_getState !== 'function') {   // fora do GP: modo de teste no navegador
+    const mock = {
+      setlist: 'Modo teste (navegador)', current: 0,
+      songs: ['Sweet Child O Mine', 'Back in Black', 'Hotel California', 'Billie Jean',
+              'Smoke on the Water', 'Highway to Hell', 'Another Brick in the Wall',
+              'Come Together', 'Hey Jude', 'Wish You Were Here']
+             .map((n, i) => ({ i, n }))
+    };
+    window.gp_getState = async () => JSON.stringify(mock);
+    window.gp_selectSong = async i => { mock.current = parseInt(i, 10); return '1'; };
+    window.gp_loadSettings = async () => '';
+    window.gp_saveSettings = async () => '1';
+  }
+  await load();
+  applyGlobal();
+  await poll();
+  setInterval(poll, 1500);
+}
+
+window.addEventListener('load', init);
+})();
+</script>
+</body>
+</html>

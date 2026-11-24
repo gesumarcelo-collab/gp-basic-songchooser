@@ -1,0 +1,69 @@
+name: Build Gig Performer Extension (Windows x64)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+# Se você fizer dois commits seguidos, cancela o build antigo e compila só o mais novo
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Windows x64 (MSVC)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Baixar gp-sdk oficial
+        shell: pwsh
+        run: git clone --depth 1 https://github.com/gigperformer/gp-sdk.git gp-sdk
+
+      - name: Mostrar assinaturas da API usadas (diagnostico)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          Get-ChildItem gp-sdk -Recurse -Filter GigPerformerAPI.h |
+            Select-String -Pattern 'switchToSong|getSongName|getSongCount|getCurrentSongIndex|OnSetlistChanged|OnSongChanged|GetProductDescription|Initialization|registerCallback' |
+            ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" }
+
+      - name: Ambiente MSVC x64
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: CMake - Configurar
+        shell: pwsh
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_CXX_COMPILER=cl
+          -DGPSDK_DIR="${{ github.workspace }}/gp-sdk"
+
+      - name: CMake - Compilar
+        shell: pwsh
+        run: cmake --build build --config Release --parallel
+
+      - name: Verificar DLL
+        shell: pwsh
+        run: |
+          if (-not (Test-Path build/out/SetlistQueue.dll)) { throw "DLL nao foi gerada" }
+          Get-Item build/out/SetlistQueue.dll | Format-List Name, Length
+
+      - name: Publicar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SetlistQueue-windows-x64
+          path: build/out/SetlistQueue.dll
+          if-no-files-found: error
