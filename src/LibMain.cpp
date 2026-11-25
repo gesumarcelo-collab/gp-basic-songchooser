@@ -20,6 +20,11 @@ namespace
 {
 constexpr int kNoOverride = -1000000;
 
+using WebViewPtr = std::unique_ptr<choc::ui::WebView>;
+using WindowPtr = std::unique_ptr<choc::ui::DesktopWindow>;
+using CharBuf8 = std::array<char, 8>;
+using IntPair = std::pair<int, int>;
+
 std::string jsonEscape(const std::string &s)
 {
     std::string out;
@@ -38,7 +43,7 @@ std::string jsonEscape(const std::string &s)
         default:
             if (c < 0x20)
             {
-                std::array<char, 8> buf{};
+                CharBuf8 buf{};
                 std::snprintf(buf.data(), buf.size(), "\\u%04x", c);
                 out += buf.data();
             }
@@ -145,7 +150,7 @@ int intArg(const choc::value::ValueView &args, int fallback)
     return fallback;
 }
 
-std::pair<int, int> twoIntArgs(const choc::value::ValueView &args)
+IntPair twoIntArgs(const choc::value::ValueView &args)
 {
     int a = -1;
     int b = 0;
@@ -360,7 +365,7 @@ void LibMain::openWindow()
 
     try
     {
-        webview = std::make_unique<choc::ui::WebView>();
+        webview = WebViewPtr(new choc::ui::WebView());
     }
     catch (...)
     {
@@ -409,10 +414,9 @@ void LibMain::openWindow()
         }
         return choc::value::createString("1");
     });
-
-    webview->bind("gp_loadSettings", [this](const choc::value::ValueView &) -> choc::value::Value {
-        if (shuttingDown)
-            return choc::value::createString("{}");
+webview->bind("gp_loadSettings", [this](const choc::value::ValueView &) -> choc::value::Value {
+if (shuttingDown)
+return choc::value::createString("{}");
 return choc::value::createString(readTextFile(settingsFile()));
 });
 webview->bind("gp_saveSettings", [this](const choc::value::ValueView &args) -> choc::value::Value {
@@ -423,7 +427,7 @@ if (!text.empty())
 writeTextFile(settingsFile(), text);
 return choc::value::createString("1");
 });
-window = std::make_uniquechoc::ui::DesktopWindow(choc::ui::Bounds{120, 80, 460, 760});
+window = WindowPtr(new choc::ui::DesktopWindow(choc::ui::Bounds{120, 80, 460, 760}));
 window->setWindowTitle("Setlist Queue");
 window->setResizable(true);
 window->setMinimumSize(280, 320);
@@ -431,16 +435,16 @@ window->windowClosed = [this] {
 closedByUser = true;
 #ifdef _WIN32
 if (window)
-ShowWindow(static_cast(window->getWindowHandle()), SW_HIDE);
+ShowWindow((HWND) window->getWindowHandle(), SW_HIDE);
 #endif
 };
 window->setContent(webview->getViewHandle());
-const std::string html(reinterpret_cast<const char *>(kWebContent), kWebContentSize);
+const std::string html((const char *) kWebContent, kWebContentSize);
 webview->setHTML(html);
 window->setVisible(true);
 window->toFront();
 #ifdef _WIN32
-if (auto hwnd = static_cast(window->getWindowHandle()))
+if (HWND hwnd = (HWND) window->getWindowHandle())
 SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 #endif
 }
