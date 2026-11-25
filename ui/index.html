@@ -422,6 +422,9 @@ const SWATCH_COLORS = [
 "#0f766e", "#b45309", "#3730a3", "#3f3f46"
 ];
 let gpState = { setlist: "Setlist", current: -1, currentPart: -1, songs: [] };
+let lastStateRaw = "";
+let isSyncing = false;
+let isDragging = false;
 let settings = {
 globalFont: FONTS.at(0).value,
 globalSize: 16,
@@ -465,6 +468,21 @@ if (window.gp_saveSettings) {
 window.gp_saveSettings(JSON.stringify(settings));
 }
 }
+async function syncFromGP() {
+if (isSyncing || isDragging || !window.gp_getState) return;
+isSyncing = true;
+try {
+const rawState = await window.gp_getState();
+if (rawState && rawState !== lastStateRaw) {
+lastStateRaw = rawState;
+gpState = JSON.parse(rawState);
+render();
+}
+} catch (e) {
+} finally {
+isSyncing = false;
+}
+}
 async function loadInitialData() {
 try {
 if (window.gp_loadSettings) {
@@ -483,21 +501,19 @@ songStyles: parsed.songStyles || {}
 document.getElementById("globalFont").value = settings.globalFont;
 document.getElementById("globalSize").value = settings.globalSize;
 document.getElementById("globalSizeVal").textContent = settings.globalSize + "px";
-try {
-if (window.gp_getState) {
-const rawState = await window.gp_getState();
-if (rawState) {
-gpState = JSON.parse(rawState);
-}
-}
-} catch (e) {}
+await syncFromGP();
 render();
 document.getElementById("songList").focus();
+setInterval(syncFromGP, 250);
 }
 window.gpPush = function(newState) {
 if (newState && typeof newState === "object") {
+const serialized = JSON.stringify(newState);
+if (serialized !== lastStateRaw) {
+lastStateRaw = serialized;
 gpState = newState;
 render();
+}
 }
 };
 function getOrderedSongs() {
@@ -531,6 +547,7 @@ const targetSong = ordered.at(targetVisualIdx);
 if (targetSong && window.gp_selectSong) {
 closePartsMenu();
 window.gp_selectSong(targetSong.i);
+setTimeout(syncFromGP, 60);
 }
 }
 document.addEventListener("keydown", (e) => {
@@ -620,6 +637,7 @@ closePartsMenu();
 listEl.focus();
 if (window.gp_selectSong) {
 window.gp_selectSong(song.i);
+setTimeout(syncFromGP, 60);
 }
 };
 item.oncontextmenu = (e) => {
@@ -628,11 +646,13 @@ e.stopPropagation();
 openPartsMenu(e.clientX, e.clientY, song);
 };
 item.ondragstart = (e) => {
+isDragging = true;
 dragSrcIndex = visualIdx;
 item.classList.add("dragging");
 e.dataTransfer.effectAllowed = "move";
 };
 item.ondragend = () => {
+isDragging = false;
 item.classList.remove("dragging");
 document.querySelectorAll(".song-item").forEach(el => el.classList.remove("drag-over"));
 };
@@ -645,6 +665,7 @@ item.classList.remove("drag-over");
 };
 item.ondrop = (e) => {
 e.preventDefault();
+isDragging = false;
 item.classList.remove("drag-over");
 if (dragSrcIndex === null || dragSrcIndex === visualIdx) return;
 const currentList = getOrderedSongs();
@@ -688,8 +709,10 @@ e.stopPropagation();
 closePartsMenu();
 if (window.gp_selectSongPart) {
 window.gp_selectSongPart([song.i, p.i]);
+setTimeout(syncFromGP, 60);
 } else if (window.gp_selectSong) {
 window.gp_selectSong(song.i);
+setTimeout(syncFromGP, 60);
 }
 };
 menu.appendChild(btn);
