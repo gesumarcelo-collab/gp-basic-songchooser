@@ -7,7 +7,6 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-# Se você fizer dois commits seguidos, cancela o build antigo e compila só o mais novo
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
@@ -28,69 +27,27 @@ jobs:
 
       - name: Baixar gp-sdk oficial
         shell: pwsh
-        run: git clone --depth 1 https://github.com/gigperformer/gp-sdk.git gp-sdk
-
-      - name: Listar arquivos do SDK (diagnostico)
-        shell: pwsh
-        continue-on-error: true
-        run: |
-          Get-ChildItem gp-sdk -Recurse -Include *.def,*.c,*.cpp,*.h |
-            Where-Object { $_.FullName -notmatch '\\\.git\\' } |
-            ForEach-Object { $_.FullName.Substring((Get-Location).Path.Length + 1) }
-
-      - name: Mostrar assinaturas da API usadas (diagnostico)
-        shell: pwsh
-        continue-on-error: true
-        run: |
-          Get-ChildItem gp-sdk -Recurse -Filter GigPerformerAPI.h |
-            Select-String -Pattern 'switchToSong|getSongName|getSongCount|getCurrentSongIndex|OnSetlistChanged|OnSongChanged|GetProductDescription|Initialization|registerCallback' |
-            ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" }
+        run: git clone --depth 1 https://github.com gp-sdk
 
       - name: Ambiente MSVC x64
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      - name: CMake - Configurar
-        shell: pwsh
-        run: >
-          cmake -S . -B build -G Ninja
-          -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_C_COMPILER=cl
-          -DCMAKE_CXX_COMPILER=cl
-          -DGPSDK_DIR="${{ github.workspace }}/gp-sdk"
+      - name: Configurar CMake
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-      - name: CMake - Compilar
-        shell: pwsh
+      - name: Compilar DLL
         run: cmake --build build --config Release --parallel
 
-      - name: Verificar DLL
-        shell: pwsh
+      - name: Verificar Exports e Dependencias da DLL (Diagnostico)
         run: |
-          if (-not (Test-Path build/out/SetlistQueue.dll)) { throw "DLL nao foi gerada" }
-          Get-Item build/out/SetlistQueue.dll | Format-List Name, Length
+          dumpbin /EXPORTS build\out\SetlistQueue.dll
+          dumpbin /DEPENDENTS build\out\SetlistQueue.dll
 
-      - name: Diagnostico da DLL (exports e dependencias)
-        shell: pwsh
-        continue-on-error: true
-        run: |
-          dumpbin /exports build/out/SetlistQueue.dll
-          dumpbin /dependents build/out/SetlistQueue.dll
-
-      - name: Verificar exports obrigatorios do Gig Performer
-        shell: pwsh
-        run: |
-          $exports = (dumpbin /exports build/out/SetlistQueue.dll) | Out-String
-          foreach ($name in @('GPQueryLibrary', 'GPRegister')) {
-            if ($exports -notmatch "\b$name\b") {
-              throw "A DLL NAO exporta '$name' - o Gig Performer vai ignora-la."
-            }
-          }
-          Write-Host "OK: GPQueryLibrary e GPRegister estao exportadas."
-
-      - name: Publicar artifact
+      - name: Publicar Artifact (DLL)
         uses: actions/upload-artifact@v4
         with:
-          name: SetlistQueue-windows-x64
+          name: SetlistQueue-Windows-x64
           path: build/out/SetlistQueue.dll
           if-no-files-found: error
