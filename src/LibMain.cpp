@@ -106,23 +106,23 @@ bool writeTextFile(const std::filesystem::path &p, const std::string &text)
     }
 }
 
-int intArg(const choc::value::ValueView &args, int fallback)
+int intArgAt(const choc::value::ValueView &args, uint32_t index, int fallback)
 {
     try
     {
-        if (args.isArray() && args.size() >= 1)
+        if (args.isArray() && args.size() > index)
         {
-            const auto arg0 = args[0];
-            if (arg0.isInt32())
-                return arg0.getInt32();
-            if (arg0.isInt64())
-                return static_cast<int>(arg0.getInt64());
-            if (arg0.isFloat32())
-                return static_cast<int>(arg0.getFloat32());
-            if (arg0.isFloat64())
-                return static_cast<int>(arg0.getFloat64());
-            if (arg0.isString())
-                return std::stoi(std::string(arg0.getString()));
+            const auto arg = args[index];
+            if (arg.isInt32())
+                return arg.getInt32();
+            if (arg.isInt64())
+                return static_cast<int>(arg.getInt64());
+            if (arg.isFloat32())
+                return static_cast<int>(arg.getFloat32());
+            if (arg.isFloat64())
+                return static_cast<int>(arg.getFloat64());
+            if (arg.isString())
+                return std::stoi(std::string(arg.getString()));
         }
     }
     catch (...)
@@ -153,14 +153,15 @@ LibMain::~LibMain()
 void LibMain::Initialization()
 {
     registerCallback("OnSongChanged");
+    registerCallback("OnSongPartChanged");
     registerCallback("OnSetlistChanged");
 }
 
 std::string LibMain::GetProductDescription()
 {
     return "<Library>"
-           "<Product Name=\"Setlist Queue\" Version=\"1.0.0\" BuildDate=\"" __DATE__ "\"></Product>"
-           "<Description>Janela flutuante com setlist, fila visual e cores por musica</Description>"
+           "<Product Name=\"Setlist Queue\" Version=\"1.1.0\" BuildDate=\"" __DATE__ "\"></Product>"
+           "<Description>Janela flutuante com setlist, song parts, fila visual e cores por musica</Description>"
            "</Library>";
 }
 
@@ -181,41 +182,59 @@ void LibMain::InvokeMenu(int)
 
 void LibMain::OnSongChanged(int, int newIndex)
 {
-    pushState(newIndex);
+    pushState(newIndex, kNoOverride);
+}
+
+void LibMain::OnSongPartChanged(int, int newPartIndex)
+{
+    pushState(kNoOverride, newPartIndex);
 }
 
 void LibMain::OnSetlistChanged(const std::string &newSetlistName)
 {
     setlistName = newSetlistName;
-    pushState(kNoOverride);
+    pushState(kNoOverride, kNoOverride);
 }
 
-std::string LibMain::buildStateJson(int currentOverride)
+std::string LibMain::buildStateJson(int currentSongOverride, int currentPartOverride)
 {
     int count = getSongCount();
     if (count < 0)
         count = 0;
-    const int current = (currentOverride != kNoOverride) ? currentOverride : getCurrentSongIndex();
+    const int current = (currentSongOverride != kNoOverride) ? currentSongOverride : getCurrentSongIndex();
+    const int currentPart = (currentPartOverride != kNoOverride) ? currentPartOverride : getCurrentSongpartIndex();
 
-    std::string j = "{\"setlist\":\"" + jsonEscape(setlistName) + "\",\"current\":" + std::to_string(current) +
+    std::string j = "{\"setlist\":\"" + jsonEscape(setlistName) +
+                    "\",\"current\":" + std::to_string(current) +
+                    ",\"currentPart\":" + std::to_string(currentPart) +
                     ",\"songs\":[";
     for (int i = 0; i < count; ++i)
     {
         if (i > 0)
             j += ',';
-        j += "{\"i\":" + std::to_string(i) + ",\"n\":\"" + jsonEscape(getSongName(i)) + "\"}";
+        j += "{\"i\":" + std::to_string(i) + ",\"n\":\"" + jsonEscape(getSongName(i)) + "\",\"parts\":[";
+        int partCount = getSongpartCount(i);
+        if (partCount < 0)
+            partCount = 0;
+        for (int p = 0; p < partCount; ++p)
+        {
+            if (p > 0)
+                j += ',';
+            j += "\"" + jsonEscape(getSongpartName(i, p)) + "\"";
+        }
+        j += "]}";
     }
     j += "]}";
     return j;
 }
 
-void LibMain::pushState(int currentOverride)
+void LibMain::pushState(int currentSongOverride, int currentPartOverride)
 {
     if (!webview || closedByUser)
         return;
     try
     {
-        webview->evaluateJavascript("window.gpPush&&window.gpPush(" + buildStateJson(currentOverride) + ");");
+        webview->evaluateJavascript("window.gpPush&&window.gpPush(" + buildStateJson(currentSongOverride, currentPartOverride) + ");");
     }
     catch (...)
     {
@@ -260,16 +279,19 @@ void LibMain::openWindow()
     }
 
     webview->bind("gp_getState", [this](const choc::value::ValueView &) -> choc::value::Value {
-        return choc::value::createString(buildStateJson(kNoOverride));
+        return choc::value::createString(buildStateJson(kNoOverride, kNoOverride));
     });
 
     webview->bind("gp_selectSong", [this](const choc::value::ValueView &args) -> choc::value::Value {
-        const int idx = intArg(args, -1);
-        if (idx >= 0 && idx < getSongCount())
+        const int songIdx = intArgAt(args, 0, -1);
+        const int partIdx = intArgAt(args, 1, 0);
+        if (songIdx >= 0 && songIdx < getSongCount())
         {
             if (!inSetlistMode())
                 switchToSetlistView();
-            switchToSong(idx, 0);
+            int maxParts = getSongpartCount(songIdx);
+            int safePart = (partIdx >= 0 && partIdx < maxParts) ? partIdx : 0;
+            switchToSong(songIdx, safePart);
         }
         return choc::value::createString("1");
     });
