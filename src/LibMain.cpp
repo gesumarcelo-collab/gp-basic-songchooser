@@ -133,8 +133,11 @@ int intArg(const choc::value::ValueView &args, int fallback)
 {
     try
     {
-        if (args.isArray() && args.size() >= 1)
-            return parseIntView(args.at(0), fallback);
+        if (args.isArray())
+        {
+            for (const auto &item : args)
+                return parseIntView(item, fallback);
+        }
     }
     catch (...)
     {
@@ -148,19 +151,29 @@ std::pair<int, int> twoIntArgs(const choc::value::ValueView &args)
     int b = 0;
     try
     {
-        if (args.isArray() && args.size() >= 1)
+        if (args.isArray())
         {
-            const auto first = args.at(0);
-            if (first.isArray() && first.size() >= 2)
+            int count = 0;
+            for (const auto &item : args)
             {
-                a = parseIntView(first.at(0), -1);
-                b = parseIntView(first.at(1), 0);
-            }
-            else
-            {
-                a = parseIntView(first, -1);
-                if (args.size() >= 2)
-                    b = parseIntView(args.at(1), 0);
+                if (count == 0 && item.isArray())
+                {
+                    int sub = 0;
+                    for (const auto &subItem : item)
+                    {
+                        if (sub == 0)
+                            a = parseIntView(subItem, -1);
+                        else if (sub == 1)
+                            b = parseIntView(subItem, 0);
+                        ++sub;
+                    }
+                    break;
+                }
+                if (count == 0)
+                    a = parseIntView(item, -1);
+                else if (count == 1)
+                    b = parseIntView(item, 0);
+                ++count;
             }
         }
     }
@@ -174,8 +187,15 @@ std::string stringArg(const choc::value::ValueView &args)
 {
     try
     {
-        if (args.isArray() && args.size() >= 1 && args.at(0).isString())
-            return std::string(args.at(0).getString());
+        if (args.isArray())
+        {
+            for (const auto &item : args)
+            {
+                if (item.isString())
+                    return std::string(item.getString());
+                break;
+            }
+        }
     }
     catch (...)
     {
@@ -393,23 +413,21 @@ void LibMain::openWindow()
     webview->bind("gp_loadSettings", [this](const choc::value::ValueView &) -> choc::value::Value {
         if (shuttingDown)
             return choc::value::createString("{}");
-        return choc::value::createString(readTextFile(settingsFile()));
-    });
-
-    webview->bind("gp_saveSettings", [this](const choc::value::ValueView &args) -> choc::value::Value {
-        if (shuttingDown)
-            return choc::value::createString("0");
-        const auto text = stringArg(args);
-        if (!text.empty())
-            writeTextFile(settingsFile(), text);
-        return choc::value::createString("1");
-    });
-
-    window = std::make_unique<choc::ui::DesktopWindow>(choc::ui::Bounds{120, 80, 460, 760});
-    window->setWindowTitle("Setlist Queue");
-    window->setResizable(true);
-    window->setMinimumSize(280, 320);
-    window->windowClosed = [this] {
+return choc::value::createString(readTextFile(settingsFile()));
+});
+webview->bind("gp_saveSettings", [this](const choc::value::ValueView &args) -> choc::value::Value {
+if (shuttingDown)
+return choc::value::createString("0");
+const auto text = stringArg(args);
+if (!text.empty())
+writeTextFile(settingsFile(), text);
+return choc::value::createString("1");
+});
+window = std::make_uniquechoc::ui::DesktopWindow(choc::ui::Bounds{120, 80, 460, 760});
+window->setWindowTitle("Setlist Queue");
+window->setResizable(true);
+window->setMinimumSize(280, 320);
+window->windowClosed = [this] {
 closedByUser = true;
 #ifdef _WIN32
 if (window)
@@ -417,7 +435,8 @@ ShowWindow(static_cast(window->getWindowHandle()), SW_HIDE);
 #endif
 };
 window->setContent(webview->getViewHandle());
-webview->setHTML(std::string(reinterpret_cast<const char *>(kWebContent), kWebContentSize));
+const std::string html(reinterpret_cast<const char *>(kWebContent), kWebContentSize);
+webview->setHTML(html);
 window->setVisible(true);
 window->toFront();
 #ifdef _WIN32
