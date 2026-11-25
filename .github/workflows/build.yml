@@ -30,6 +30,14 @@ jobs:
         shell: pwsh
         run: git clone --depth 1 https://github.com/gigperformer/gp-sdk.git gp-sdk
 
+      - name: Listar arquivos do SDK (diagnostico)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          Get-ChildItem gp-sdk -Recurse -Include *.def,*.c,*.cpp,*.h |
+            Where-Object { $_.FullName -notmatch '\\\.git\\' } |
+            ForEach-Object { $_.FullName.Substring((Get-Location).Path.Length + 1) }
+
       - name: Mostrar assinaturas da API usadas (diagnostico)
         shell: pwsh
         continue-on-error: true
@@ -61,6 +69,24 @@ jobs:
         run: |
           if (-not (Test-Path build/out/SetlistQueue.dll)) { throw "DLL nao foi gerada" }
           Get-Item build/out/SetlistQueue.dll | Format-List Name, Length
+
+      - name: Diagnostico da DLL (exports e dependencias)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          dumpbin /exports build/out/SetlistQueue.dll
+          dumpbin /dependents build/out/SetlistQueue.dll
+
+      - name: Verificar exports obrigatorios do Gig Performer
+        shell: pwsh
+        run: |
+          $exports = (dumpbin /exports build/out/SetlistQueue.dll) | Out-String
+          foreach ($name in @('GPQueryLibrary', 'GPRegister')) {
+            if ($exports -notmatch "\b$name\b") {
+              throw "A DLL NAO exporta '$name' - o Gig Performer vai ignora-la."
+            }
+          }
+          Write-Host "OK: GPQueryLibrary e GPRegister estao exportadas."
 
       - name: Publicar artifact
         uses: actions/upload-artifact@v4
