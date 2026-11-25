@@ -9,6 +9,7 @@
 #include <iterator>
 #include <memory>
 #include <string>
+#include <utility>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -36,7 +37,7 @@ std::string jsonEscape(const std::string &s)
         default:
             if (c < 0x20)
             {
-                char buf[8];
+                char buf;
                 std::snprintf(buf, sizeof(buf), "\\u%04x", c);
                 out += buf;
             }
@@ -106,24 +107,20 @@ bool writeTextFile(const std::filesystem::path &p, const std::string &text)
     }
 }
 
-int intArgAt(const choc::value::ValueView &args, uint32_t index, int fallback)
+int parseIntView(const choc::value::ValueView &v, int fallback)
 {
     try
     {
-        if (args.isArray() && args.size() > index)
-        {
-            const auto arg = args[index];
-            if (arg.isInt32())
-                return arg.getInt32();
-            if (arg.isInt64())
-                return static_cast<int>(arg.getInt64());
-            if (arg.isFloat32())
-                return static_cast<int>(arg.getFloat32());
-            if (arg.isFloat64())
-                return static_cast<int>(arg.getFloat64());
-            if (arg.isString())
-                return std::stoi(std::string(arg.getString()));
-        }
+        if (v.isInt32())
+            return v.getInt32();
+        if (v.isInt64())
+            return static_cast<int>(v.getInt64());
+        if (v.isFloat32())
+            return static_cast<int>(v.getFloat32());
+        if (v.isFloat64())
+            return static_cast<int>(v.getFloat64());
+        if (v.isString())
+            return std::stoi(std::string(v.getString()));
     }
     catch (...)
     {
@@ -131,12 +128,47 @@ int intArgAt(const choc::value::ValueView &args, uint32_t index, int fallback)
     return fallback;
 }
 
+int intArg(const choc::value::ValueView &args, int fallback)
+{
+    if (args.isArray() && args.size() >= 1)
+        return parseIntView(args, fallback);
+    return fallback;
+}
+
+std::pair<int, int> twoIntArgs(const choc::value::ValueView &args)
+{
+    int a = -1;
+    int b = 0;
+    try
+    {
+        if (args.isArray() && args.size() >= 1)
+        {
+            const auto first = args;
+            if (first.isArray() && first.size() >= 2)
+            {
+                a = parseIntView(first, -1);
+                b = parseIntView(first, 0);
+            }
+            else
+            {
+                a = parseIntView(first, -1);
+                if (args.size() >= 2)
+                    b = parseIntView(args, 0);
+            }
+        }
+    }
+    catch (...)
+    {
+    }
+    return {a, b};
+}
+
 std::string stringArg(const choc::value::ValueView &args)
 {
     try
     {
-        if (args.isArray() && args.size() >= 1 && args[0].isString())
-            return std::string(args[0].getString());
+        if (args.isArray() && args.size() >= 1 && args.isString())
+            return std::string(args.getString());
     }
     catch (...)
     {
@@ -147,6 +179,7 @@ std::string stringArg(const choc::value::ValueView &args)
 
 LibMain::~LibMain()
 {
+    shuttingDown = true;
     destroyWindow();
 }
 
@@ -157,10 +190,19 @@ void LibMain::Initialization()
     registerCallback("OnSetlistChanged");
 }
 
+void LibMain::OnClose()
+{
+    shuttingDown = true;
+    unregisterCallback("OnSongChanged");
+    unregisterCallback("OnSongPartChanged");
+    unregisterCallback("OnSetlistChanged");
+    destroyWindow();
+}
+
 std::string LibMain::GetProductDescription()
 {
     return "<Library>"
-           "<Product Name=\"Setlist Queue\" Version=\"1.1.0\" BuildDate=\"" __DATE__ "\"></Product>"
+           "<Product Name=\"Setlist Queue\" Version=\"1.1.1\" BuildDate=\"" __DATE__ "\"></Product>"
            "<Description>Janela flutuante com setlist, song parts, fila visual e cores por musica</Description>"
            "</Library>";
 }
@@ -177,50 +219,63 @@ std::string LibMain::GetMenuName(int)
 
 void LibMain::InvokeMenu(int)
 {
-    openWindow();
+    if (!shuttingDown)
+        openWindow();
 }
 
 void LibMain::OnSongChanged(int, int newIndex)
 {
-    pushState(newIndex, kNoOverride);
+    if (!shuttingDown)
+        pushState(newIndex, kNoOverride);
 }
 
-void LibMain::OnSongPartChanged(int, int newPartIndex)
+void LibMain::OnSongPartChanged(int, int newIndex)
 {
-    pushState(kNoOverride, newPartIndex);
+    if (!shuttingDown)
+        pushState(kNoOverride, newIndex);
 }
 
 void LibMain::OnSetlistChanged(const std::string &newSetlistName)
 {
+    if (shuttingDown)
+        return;
     setlistName = newSetlistName;
     pushState(kNoOverride, kNoOverride);
 }
 
-std::string LibMain::buildStateJson(int currentSongOverride, int currentPartOverride)
+std::string LibMain::buildStateJson(int songOverride, int partOverride)
 {
     int count = getSongCount();
     if (count < 0)
         count = 0;
-    const int current = (currentSongOverride != kNoOverride) ? currentSongOverride : getCurrentSongIndex();
-    const int currentPart = (currentPartOverride != kNoOverride) ? currentPartOverride : getCurrentSongpartIndex();
+
+    const int current = (songOverride != kNoOverride) ? songOverride : getCurrentSongIndex();
+    const int currentPart = (partOverride != kNoOverride) ? partOverride : getCurrentSongpartIndex();
 
     std::string j = "{\"setlist\":\"" + jsonEscape(setlistName) +
                     "\",\"current\":" + std::to_string(current) +
                     ",\"currentPart\":" + std::to_string(currentPart) +
                     ",\"songs\":[";
+
     for (int i = 0; i < count; ++i)
     {
         if (i > 0)
             j += ',';
-        j += "{\"i\":" + std::to_string(i) + ",\"n\":\"" + jsonEscape(getSongName(i)) + "\",\"parts\":[";
-        int partCount = getSongpartCount(i);
-        if (partCount < 0)
-            partCount = 0;
-        for (int p = 0; p < partCount; ++p)
+
+        j += "{\"i\":" + std::to_string(i) +
+             ",\"n\":\"" + jsonEscape(getSongName(i)) + "\"" +
+             ",\"parts\":[";
+
+        int pCount = getSongpartCount(i);
+        if (pCount < 0)
+            pCount = 0;
+
+        for (int p = 0; p < pCount; ++p)
         {
             if (p > 0)
                 j += ',';
-            j += "\"" + jsonEscape(getSongpartName(i, p)) + "\"";
+            j += "{\"i\":" + std::to_string(p) +
+                 ",\"n\":\"" + jsonEscape(getSongpartName(i, p)) + "\"}";
         }
         j += "]}";
     }
@@ -228,13 +283,13 @@ std::string LibMain::buildStateJson(int currentSongOverride, int currentPartOver
     return j;
 }
 
-void LibMain::pushState(int currentSongOverride, int currentPartOverride)
+void LibMain::pushState(int songOverride, int partOverride)
 {
-    if (!webview || closedByUser)
+    if (shuttingDown || !webview || closedByUser)
         return;
     try
     {
-        webview->evaluateJavascript("window.gpPush&&window.gpPush(" + buildStateJson(currentSongOverride, currentPartOverride) + ");");
+        webview->evaluateJavascript("window.gpPush&&window.gpPush(" + buildStateJson(songOverride, partOverride) + ");");
     }
     catch (...)
     {
@@ -243,13 +298,29 @@ void LibMain::pushState(int currentSongOverride, int currentPartOverride)
 
 void LibMain::destroyWindow()
 {
-    webview.reset();
-    window.reset();
+    try
+    {
+        if (window)
+        {
+            window->windowClosed = nullptr;
+            window->setVisible(false);
+        }
+        webview.reset();
+        window.reset();
+    }
+    catch (...)
+    {
+        webview.release();
+        window.release();
+    }
     closedByUser = false;
 }
 
 void LibMain::openWindow()
 {
+    if (shuttingDown)
+        return;
+
     if (window && closedByUser)
         destroyWindow();
 
@@ -279,28 +350,48 @@ void LibMain::openWindow()
     }
 
     webview->bind("gp_getState", [this](const choc::value::ValueView &) -> choc::value::Value {
+        if (shuttingDown)
+            return choc::value::createString("{}");
         return choc::value::createString(buildStateJson(kNoOverride, kNoOverride));
     });
 
     webview->bind("gp_selectSong", [this](const choc::value::ValueView &args) -> choc::value::Value {
-        const int songIdx = intArgAt(args, 0, -1);
-        const int partIdx = intArgAt(args, 1, 0);
+        if (shuttingDown)
+            return choc::value::createString("0");
+        const int idx = intArg(args, -1);
+        if (idx >= 0 && idx < getSongCount())
+        {
+            if (!inSetlistMode())
+                switchToSetlistView();
+            switchToSong(idx, 0);
+        }
+        return choc::value::createString("1");
+    });
+
+    webview->bind("gp_selectSongPart", [this](const choc::value::ValueView &args) -> choc::value::Value {
+        if (shuttingDown)
+            return choc::value::createString("0");
+        const auto [songIdx, partIdx] = twoIntArgs(args);
         if (songIdx >= 0 && songIdx < getSongCount())
         {
             if (!inSetlistMode())
                 switchToSetlistView();
-            int maxParts = getSongpartCount(songIdx);
-            int safePart = (partIdx >= 0 && partIdx < maxParts) ? partIdx : 0;
+            const int maxParts = getSongpartCount(songIdx);
+            const int safePart = (partIdx >= 0 && partIdx < maxParts) ? partIdx : 0;
             switchToSong(songIdx, safePart);
         }
         return choc::value::createString("1");
     });
 
-    webview->bind("gp_loadSettings", [](const choc::value::ValueView &) -> choc::value::Value {
+    webview->bind("gp_loadSettings", [this](const choc::value::ValueView &) -> choc::value::Value {
+        if (shuttingDown)
+            return choc::value::createString("{}");
         return choc::value::createString(readTextFile(settingsFile()));
     });
 
-    webview->bind("gp_saveSettings", [](const choc::value::ValueView &args) -> choc::value::Value {
+    webview->bind("gp_saveSettings", [this](const choc::value::ValueView &args) -> choc::value::Value {
+        if (shuttingDown)
+            return choc::value::createString("0");
         const auto text = stringArg(args);
         if (!text.empty())
             writeTextFile(settingsFile(), text);
@@ -313,32 +404,29 @@ void LibMain::openWindow()
     window->setMinimumSize(280, 320);
 
     window->windowClosed = [this] {
-        closedByUser = true;
+
+closedByUser = true;
 #ifdef _WIN32
-        if (window)
-            ShowWindow(static_cast<HWND>(window->getWindowHandle()), SW_HIDE);
+if (window)
+ShowWindow(static_cast(window->getWindowHandle()), SW_HIDE);
 #endif
-    };
-
-    window->setContent(webview->getViewHandle());
-    webview->setHTML(std::string(reinterpret_cast<const char *>(kWebContent), kWebContentSize));
-
-    window->setVisible(true);
-    window->toFront();
-
+};
+window->setContent(webview->getViewHandle());
+webview->setHTML(std::string(reinterpret_cast<const char *>(kWebContent), kWebContentSize));
+window->setVisible(true);
+window->toFront();
 #ifdef _WIN32
-    if (auto hwnd = static_cast<HWND>(window->getWindowHandle()))
-        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+if (auto hwnd = static_cast(window->getWindowHandle()))
+SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 #endif
 }
-
 namespace gigperformer
 {
 namespace sdk
 {
 GigPerformerAPI *CreateGPExtension(LibraryHandle handle)
 {
-    return new LibMain(handle);
+return new LibMain(handle);
 }
 } // namespace sdk
 } // namespace gigperformer
