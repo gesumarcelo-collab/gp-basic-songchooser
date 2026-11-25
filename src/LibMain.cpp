@@ -1,6 +1,7 @@
 #include "LibMain.h"
 #include "webcontent.h"
 
+#include <array>
 #include <cstdio>
 #include <exception>
 #include <filesystem>
@@ -37,9 +38,9 @@ std::string jsonEscape(const std::string &s)
         default:
             if (c < 0x20)
             {
-                char buf;
-                std::snprintf(buf, sizeof(buf), "\\u%04x", c);
-                out += buf;
+                std::array<char, 8> buf{};
+                std::snprintf(buf.data(), buf.size(), "\\u%04x", c);
+                out += buf.data();
             }
             else
             {
@@ -130,8 +131,14 @@ int parseIntView(const choc::value::ValueView &v, int fallback)
 
 int intArg(const choc::value::ValueView &args, int fallback)
 {
-    if (args.isArray() && args.size() >= 1)
-        return parseIntView(args, fallback);
+    try
+    {
+        if (args.isArray() && args.size() >= 1)
+            return parseIntView(args.at(0), fallback);
+    }
+    catch (...)
+    {
+    }
     return fallback;
 }
 
@@ -143,17 +150,17 @@ std::pair<int, int> twoIntArgs(const choc::value::ValueView &args)
     {
         if (args.isArray() && args.size() >= 1)
         {
-            const auto first = args;
+            const auto first = args.at(0);
             if (first.isArray() && first.size() >= 2)
             {
-                a = parseIntView(first, -1);
-                b = parseIntView(first, 0);
+                a = parseIntView(first.at(0), -1);
+                b = parseIntView(first.at(1), 0);
             }
             else
             {
                 a = parseIntView(first, -1);
                 if (args.size() >= 2)
-                    b = parseIntView(args, 0);
+                    b = parseIntView(args.at(1), 0);
             }
         }
     }
@@ -167,8 +174,8 @@ std::string stringArg(const choc::value::ValueView &args)
 {
     try
     {
-        if (args.isArray() && args.size() >= 1 && args.isString())
-            return std::string(args.getString());
+        if (args.isArray() && args.size() >= 1 && args.at(0).isString())
+            return std::string(args.at(0).getString());
     }
     catch (...)
     {
@@ -402,9 +409,7 @@ void LibMain::openWindow()
     window->setWindowTitle("Setlist Queue");
     window->setResizable(true);
     window->setMinimumSize(280, 320);
-
     window->windowClosed = [this] {
-
 closedByUser = true;
 #ifdef _WIN32
 if (window)
