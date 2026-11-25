@@ -43,13 +43,14 @@ class LibMain : public gigperformer::sdk::GigPerformerAPI
 
     // Callbacks do Gig Performer
     void OnSongChanged(int oldIndex, int newIndex) override;
+    void OnSongPartChanged(int oldIndex, int newIndex) override;
     void OnSetlistChanged(const std::string &newSetlistName) override;
 
   private:
     void openWindow();
     void destroyWindow();
-    void pushState(int currentOverride);
-    std::string buildStateJson(int currentOverride);
+    void pushState(int currentSongOverride, int currentPartOverride);
+    std::string buildStateJson(int currentSongOverride, int currentPartOverride);
 
     std::unique_ptr<choc::ui::WebView> webview;
     std::unique_ptr<choc::ui::DesktopWindow> window;
