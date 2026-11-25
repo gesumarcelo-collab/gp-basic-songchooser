@@ -88,6 +88,19 @@ message(STATUS "GP SDK C sources:   ${GPSDK_C_SOURCES}")
 set(GPSDK_SOURCES ${GPSDK_CPP_SOURCES} ${GPSDK_C_SOURCES})
 
 # ---------------------------------------------------------------------------
+# Arquivo .def do SDK (se existir fora das pastas de exemplo)
+# ---------------------------------------------------------------------------
+set(GPSDK_DEF_FILE "")
+file(GLOB_RECURSE _def_files "${GPSDK_DIR}/*.def")
+list(FILTER _def_files EXCLUDE REGEX "[Ee]xample|[Ss]ample|/build/|/[Tt]est")
+if(_def_files)
+    list(GET _def_files 0 GPSDK_DEF_FILE)
+    message(STATUS "GP SDK .def encontrado: ${GPSDK_DEF_FILE}")
+else()
+    message(STATUS "Nenhum .def do SDK encontrado; usando /EXPORT explicito")
+endif()
+
+# ---------------------------------------------------------------------------
 # Embute ui/index.html como array de bytes (sem limite de tamanho de string)
 # ---------------------------------------------------------------------------
 set(UI_HTML "${CMAKE_SOURCE_DIR}/ui/index.html")
@@ -134,6 +147,18 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /utf-8 /W3
         $<$<COMPILE_LANGUAGE:CXX>:/EHsc>)
+
+    # O Gig Performer procura estas duas funcoes, sem decoracao, na tabela de
+    # exports da DLL: GPQueryLibrary (informacoes) e GPRegister (carregamento).
+    # Se o SDK ja as exporta, o linker so emite o aviso LNK4197 (inofensivo).
+    target_link_options(${PROJECT_NAME} PRIVATE
+        /EXPORT:GPQueryLibrary
+        /EXPORT:GPRegister)
+
+    if(GPSDK_DEF_FILE)
+        file(TO_NATIVE_PATH "${GPSDK_DEF_FILE}" _def_native)
+        target_link_options(${PROJECT_NAME} PRIVATE "/DEF:${_def_native}")
+    endif()
 endif()
 
 if(WIN32)
