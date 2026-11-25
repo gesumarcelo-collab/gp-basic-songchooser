@@ -234,7 +234,7 @@ void LibMain::OnClose()
 std::string LibMain::GetProductDescription()
 {
     return "<Library>"
-           "<Product Name=\"Setlist Queue\" Version=\"1.1.1\" BuildDate=\"" __DATE__ "\"></Product>"
+           "<Product Name=\"Setlist Queue\" Version=\"1.1.2\" BuildDate=\"" __DATE__ "\"></Product>"
            "<Description>Janela flutuante com setlist, song parts, fila visual e cores por musica</Description>"
            "</Library>";
 }
@@ -336,9 +336,23 @@ void LibMain::destroyWindow()
         {
             window->windowClosed = nullptr;
             window->setVisible(false);
+#ifdef _WIN32
+            if (HWND hwnd = (HWND) window->getWindowHandle())
+                DestroyWindow(hwnd);
+#endif
         }
-        webview.reset();
-        window.reset();
+
+        if (shuttingDown)
+        {
+            // No encerramento do GP, evita travar no destrutor COM do WebView2
+            webview.release();
+            window.release();
+        }
+        else
+        {
+            webview.reset();
+            window.reset();
+        }
     }
     catch (...)
     {
@@ -407,13 +421,13 @@ void LibMain::openWindow()
         if (songIdx >= 0 && songIdx < getSongCount())
         {
             if (!inSetlistMode())
-                switchToSetlistView();
-            const int maxParts = getSongpartCount(songIdx);
-            const int safePart = (partIdx >= 0 && partIdx < maxParts) ? partIdx : 0;
-            switchToSong(songIdx, safePart);
-        }
-        return choc::value::createString("1");
-    });
+switchToSetlistView();
+const int maxParts = getSongpartCount(songIdx);
+const int safePart = (partIdx >= 0 && partIdx < maxParts) ? partIdx : 0;
+switchToSong(songIdx, safePart);
+}
+return choc::value::createString("1");
+});
 webview->bind("gp_loadSettings", [this](const choc::value::ValueView &) -> choc::value::Value {
 if (shuttingDown)
 return choc::value::createString("{}");
