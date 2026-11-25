@@ -30,12 +30,13 @@ jobs:
         run: |
           $repo = "https://github.com" + "/gigperformer/gp-sdk.git"
           git clone --depth 1 $repo gp-sdk
-          $entry = "gp-sdk/cpp/src/gigperformer/sdk/entry.cpp"
-          if (Test-Path $entry) {
-            $txt = Get-Content $entry -Raw
-            $txt = $txt -replace 'return\s+\d+\s*;(\s*\})', 'return 50;$1'
-            Set-Content $entry $txt -NoNewline
+          Get-ChildItem gp-sdk -Recurse -Include entry.cpp,types.h,GigPerformerAPI.h | ForEach-Object {
+            $txt = Get-Content $_.FullName -Raw
+            $txt = $txt -replace 'GPSDK_VERSION\s+\d+', 'GPSDK_VERSION 53'
+            $txt = $txt -replace '(GetGPSDKVersion\s*\([^)]*\)\s*\{\s*return\s+)\d+(\s*;)', '${1}53${2}'
+            Set-Content $_.FullName $txt -NoNewline
           }
+          Select-String -Path "gp-sdk\**\entry.cpp" -Pattern "GetGPSDKVersion|GPSDK_VERSION"
 
       - name: Ambiente MSVC x64
         uses: ilammy/msvc-dev-cmd@v1
