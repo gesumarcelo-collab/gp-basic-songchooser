@@ -25,7 +25,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Baixar gp-sdk oficial e atualizar GPSDK_VERSION para 50
+      - name: Baixar gp-sdk oficial e atualizar GPSDK_VERSION para 60
         shell: pwsh
         run: |
           $repo = "https://github.com" + "/gigperformer/gp-sdk.git"
@@ -33,7 +33,7 @@ jobs:
           
           $importsFile = "gp-sdk/c/src/gigperformer/sdk/imports.c"
           $txt = Get-Content $importsFile -Raw
-          $txt = $txt -replace '#define\s+GPSDK_VERSION\s+\d+', '#define GPSDK_VERSION 50'
+          $txt = $txt -replace '#define\s+GPSDK_VERSION\s+\d+', '#define GPSDK_VERSION 60'
           Set-Content $importsFile $txt -NoNewline
 
       - name: Ambiente MSVC x64
