@@ -25,11 +25,17 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Baixar gp-sdk oficial
+      - name: Baixar gp-sdk oficial e atualizar versao SDK para GP 5.3+
         shell: pwsh
         run: |
           $repo = "https://github.com" + "/gigperformer/gp-sdk.git"
           git clone --depth 1 $repo gp-sdk
+          $entry = "gp-sdk/cpp/src/gigperformer/sdk/entry.cpp"
+          if (Test-Path $entry) {
+            $txt = Get-Content $entry -Raw
+            $txt = $txt -replace 'return\s+\d+\s*;(\s*\})', 'return 50;$1'
+            Set-Content $entry $txt -NoNewline
+          }
 
       - name: Ambiente MSVC x64
         uses: ilammy/msvc-dev-cmd@v1
@@ -41,11 +47,6 @@ jobs:
 
       - name: Compilar DLL
         run: cmake --build build --config Release --parallel
-
-      - name: Verificar Exports e Dependencias da DLL (Diagnostico)
-        run: |
-          dumpbin /EXPORTS build\out\SetlistQueue.dll
-          dumpbin /DEPENDENTS build\out\SetlistQueue.dll
 
       - name: Publicar Artifact (DLL)
         uses: actions/upload-artifact@v4
