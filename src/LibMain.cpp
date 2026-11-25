@@ -25,6 +25,24 @@ using WindowPtr = std::unique_ptr<choc::ui::DesktopWindow>;
 using CharBuf8 = std::array<char, 8>;
 using IntPair = std::pair<int, int>;
 
+#ifdef _WIN32
+void pinCurrentDllInMemory()
+{
+    static bool pinned = false;
+    if (pinned)
+        return;
+
+    HMODULE hm = nullptr;
+    if (GetModuleHandleExA(
+            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
+            reinterpret_cast<LPCSTR>(&pinCurrentDllInMemory),
+            &hm))
+    {
+        pinned = true;
+    }
+}
+#endif
+
 std::string jsonEscape(const std::string &s)
 {
     std::string out;
@@ -234,7 +252,7 @@ void LibMain::OnClose()
 std::string LibMain::GetProductDescription()
 {
     return "<Library>"
-           "<Product Name=\"Setlist Queue\" Version=\"1.1.2\" BuildDate=\"" __DATE__ "\"></Product>"
+           "<Product Name=\"Setlist Queue\" Version=\"1.1.3\" BuildDate=\"" __DATE__ "\"></Product>"
            "<Description>Janela flutuante com setlist, song parts, fila visual e cores por musica</Description>"
            "</Library>";
 }
@@ -336,15 +354,10 @@ void LibMain::destroyWindow()
         {
             window->windowClosed = nullptr;
             window->setVisible(false);
-#ifdef _WIN32
-            if (HWND hwnd = (HWND) window->getWindowHandle())
-                DestroyWindow(hwnd);
-#endif
         }
 
         if (shuttingDown)
         {
-            // No encerramento do GP, evita travar no destrutor COM do WebView2
             webview.release();
             window.release();
         }
@@ -366,6 +379,10 @@ void LibMain::openWindow()
 {
     if (shuttingDown)
         return;
+
+#ifdef _WIN32
+    pinCurrentDllInMemory();
+#endif
 
     if (window && closedByUser)
         destroyWindow();
@@ -416,11 +433,11 @@ void LibMain::openWindow()
 
     webview->bind("gp_selectSongPart", [this](const choc::value::ValueView &args) -> choc::value::Value {
         if (shuttingDown)
-            return choc::value::createString("0");
-        const auto [songIdx, partIdx] = twoIntArgs(args);
-        if (songIdx >= 0 && songIdx < getSongCount())
-        {
-            if (!inSetlistMode())
+return choc::value::createString("0");
+const auto [songIdx, partIdx] = twoIntArgs(args);
+if (songIdx >= 0 && songIdx < getSongCount())
+{
+if (!inSetlistMode())
 switchToSetlistView();
 const int maxParts = getSongpartCount(songIdx);
 const int safePart = (partIdx >= 0 && partIdx < maxParts) ? partIdx : 0;
