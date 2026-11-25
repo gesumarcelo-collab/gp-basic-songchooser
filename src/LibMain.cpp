@@ -110,8 +110,20 @@ int intArg(const choc::value::ValueView &args, int fallback)
 {
     try
     {
-        if (args.size() >= 1 && args.isString())
-            return std::stoi(std::string(args.getString()));
+        if (args.isArray() && args.size() >= 1)
+        {
+            const auto arg0 = args[0];
+            if (arg0.isInt32())
+                return arg0.getInt32();
+            if (arg0.isInt64())
+                return static_cast<int>(arg0.getInt64());
+            if (arg0.isFloat32())
+                return static_cast<int>(arg0.getFloat32());
+            if (arg0.isFloat64())
+                return static_cast<int>(arg0.getFloat64());
+            if (arg0.isString())
+                return std::stoi(std::string(arg0.getString()));
+        }
     }
     catch (...)
     {
@@ -123,8 +135,8 @@ std::string stringArg(const choc::value::ValueView &args)
 {
     try
     {
-        if (args.size() >= 1 && args.isString())
-            return std::string(args.getString());
+        if (args.isArray() && args.size() >= 1 && args[0].isString())
+            return std::string(args[0].getString());
     }
     catch (...)
     {
@@ -254,7 +266,11 @@ void LibMain::openWindow()
     webview->bind("gp_selectSong", [this](const choc::value::ValueView &args) -> choc::value::Value {
         const int idx = intArg(args, -1);
         if (idx >= 0 && idx < getSongCount())
+        {
+            if (!inSetlistMode())
+                switchToSetlistView();
             switchToSong(idx, 0);
+        }
         return choc::value::createString("1");
     });
 
