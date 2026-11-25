@@ -27,7 +27,9 @@ jobs:
 
       - name: Baixar gp-sdk oficial
         shell: pwsh
-        run: git clone --depth 1 https://github.com gp-sdk
+        run: |
+          $repo = "https://github.com" + "/gigperformer/gp-sdk.git"
+          git clone --depth 1 $repo gp-sdk
 
       - name: Ambiente MSVC x64
         uses: ilammy/msvc-dev-cmd@v1
