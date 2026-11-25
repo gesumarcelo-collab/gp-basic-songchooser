@@ -110,7 +110,7 @@ int intArg(const choc::value::ValueView &args, int fallback)
 {
     try
     {
-        if (args.size() >= 1 && args[0].isString())
+        if (args.size() >= 1 && args.isString())
             return std::stoi(std::string(args[0].getString()));
     }
     catch (...)
@@ -123,7 +123,7 @@ std::string stringArg(const choc::value::ValueView &args)
 {
     try
     {
-        if (args.size() >= 1 && args[0].isString())
+        if (args.size() >= 1 && args.isString())
             return std::string(args[0].getString());
     }
     catch (...)
@@ -150,6 +150,11 @@ std::string LibMain::GetProductDescription()
            "<Product Name=\"Setlist Queue\" Version=\"1.0.0\" BuildDate=\"" __DATE__ "\"></Product>"
            "<Description>Janela flutuante com setlist, fila visual e cores por musica</Description>"
            "</Library>";
+}
+
+int LibMain::GetGPSDKVersion()
+{
+    return 50;
 }
 
 int LibMain::GetMenuCount()
@@ -283,7 +288,7 @@ void LibMain::openWindow()
     };
 
     window->setContent(webview->getViewHandle());
-    webview->setHTML(std::string(kWebContent, kWebContentSize));
+    webview->setHTML(std::string(reinterpret_cast<const char *>(kWebContent), kWebContentSize));
 
     window->setVisible(true);
     window->toFront();
