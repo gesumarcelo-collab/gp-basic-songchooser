@@ -1,7 +1,5 @@
-// Inclua SEMPRE o LibMain.h primeiro: ele ja traz os headers padrao,
-// choc_Platform.h e a CHOC na ordem correta, antes do GP SDK.
 #include "LibMain.h"
-#include "webcontent.h" // gerado pelo CMake a partir de ui/index.html
+#include "webcontent.h"
 
 #include <cstdio>
 #include <exception>
@@ -135,8 +133,6 @@ std::string stringArg(const choc::value::ValueView &args)
 }
 } // namespace
 
-// ---------------------------------------------------------------------------
-
 LibMain::~LibMain()
 {
     destroyWindow();
@@ -150,7 +146,10 @@ void LibMain::Initialization()
 
 std::string LibMain::GetProductDescription()
 {
-    return "Setlist Queue: janela flutuante com o setlist, fila visual reordenavel e personalizacao por musica";
+    return "<Library>"
+           "<Product Name=\"Setlist Queue\" Version=\"1.0.0\" BuildDate=\"" __DATE__ "\"></Product>"
+           "<Description>Janela flutuante com setlist, fila visual e cores por musica</Description>"
+           "</Library>";
 }
 
 int LibMain::GetMenuCount()
@@ -160,7 +159,7 @@ int LibMain::GetMenuCount()
 
 std::string LibMain::GetMenuName(int)
 {
-    return "Setlist Queue (Fila de Musicas)";
+    return "Setlist Queue";
 }
 
 void LibMain::InvokeMenu(int)
@@ -213,7 +212,6 @@ void LibMain::pushState(int currentOverride)
 
 void LibMain::destroyWindow()
 {
-    // Ordem: primeiro o webview, depois a janela
     webview.reset();
     window.reset();
     closedByUser = false;
@@ -222,7 +220,7 @@ void LibMain::destroyWindow()
 void LibMain::openWindow()
 {
     if (window && closedByUser)
-        destroyWindow(); // recria depois de o usuario ter fechado
+        destroyWindow();
 
     if (window)
     {
@@ -231,9 +229,6 @@ void LibMain::openWindow()
         return;
     }
 
-    // Criar o WebView pode falhar se o WebView2 Runtime nao estiver instalado.
-    // Em vez de loadedOK() (que nao existe em todas as versoes da CHOC), checamos
-    // se o handle da view e valido; e protegemos com try/catch.
     try
     {
         webview = std::make_unique<choc::ui::WebView>();
@@ -246,13 +241,12 @@ void LibMain::openWindow()
     if (!webview || webview->getViewHandle() == nullptr)
     {
 #ifdef _WIN32
-        OutputDebugStringA("SetlistQueue: WebView2 indisponivel (instale o WebView2 Runtime)\n");
+        MessageBoxA(nullptr, "WebView2 Runtime nao encontrado no Windows. Instale o Microsoft Edge WebView2 Runtime.", "Setlist Queue", MB_OK | MB_ICONERROR);
 #endif
         webview.reset();
         return;
     }
 
-    // --- Funcoes C++ chamaveis pelo JavaScript (retornam Promise no JS) ---
     webview->bind("gp_getState", [this](const choc::value::ValueView &) -> choc::value::Value {
         return choc::value::createString(buildStateJson(kNoOverride));
     });
@@ -260,7 +254,7 @@ void LibMain::openWindow()
     webview->bind("gp_selectSong", [this](const choc::value::ValueView &args) -> choc::value::Value {
         const int idx = intArg(args, -1);
         if (idx >= 0 && idx < getSongCount())
-            switchToSong(idx, 0); // indice REAL no setlist, primeira parte
+            switchToSong(idx, 0);
         return choc::value::createString("1");
     });
 
@@ -281,7 +275,7 @@ void LibMain::openWindow()
     window->setMinimumSize(280, 320);
 
     window->windowClosed = [this] {
-        closedByUser = true; // a destruicao real acontece depois, fora deste callback
+        closedByUser = true;
 #ifdef _WIN32
         if (window)
             ShowWindow(static_cast<HWND>(window->getWindowHandle()), SW_HIDE);
@@ -289,19 +283,16 @@ void LibMain::openWindow()
     };
 
     window->setContent(webview->getViewHandle());
-    webview->setHTML(std::string(reinterpret_cast<const char *>(kWebContent), kWebContentSize));
+    webview->setHTML(std::string(kWebContent, kWebContentSize));
 
     window->setVisible(true);
     window->toFront();
 
 #ifdef _WIN32
-    // Janela flutuante: fica sempre por cima do Gig Performer
     if (auto hwnd = static_cast<HWND>(window->getWindowHandle()))
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 #endif
 }
-
-// ---------------------------------------------------------------------------
 
 namespace gigperformer
 {
