@@ -43,6 +43,7 @@ class LibMain : public gigperformer::sdk::GigPerformerAPI
   protected:
     void Initialization() override;
     std::string GetProductDescription() override;
+    int GetGPSDKVersion() override;
 
     // Item de menu em "Extensions" que abre a janela
     int GetMenuCount() override;
