@@ -25,22 +25,19 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Baixar gp-sdk oficial e atualizar GetGPSDKVersion para 53
+      - name: Baixar gp-sdk oficial e atualizar GPSDK_VERSION para 53
         shell: pwsh
         run: |
           $repo = "https://github.com" + "/gigperformer/gp-sdk.git"
           git clone --depth 1 $repo gp-sdk
           
-          Get-ChildItem gp-sdk -Recurse -Include *.c,*.cpp,*.h | ForEach-Object {
-            $txt = Get-Content $_.FullName -Raw
-            if ($txt -match 'GetGPSDKVersion|GPSDK_VERSION') {
-              Write-Host "=== Arquivo encontrado: $($_.FullName) ==="
-              Get-Content $_.FullName | Select-String -Pattern 'GetGPSDKVersion|GPSDK_VERSION' -Context 0,4
-              $txt = [regex]::Replace($txt, '(GetGPSDKVersion\s*\([^)]*\)\s*\{[^}]*return\s+)\d+(\s*;)', '${1}53${2}')
-              $txt = [regex]::Replace($txt, '(#define\s+GPSDK_VERSION\s+)\d+', '${1}53')
-              Set-Content $_.FullName $txt -NoNewline
-            }
-          }
+          $importsFile = "gp-sdk/c/src/gigperformer/sdk/imports.c"
+          $txt = Get-Content $importsFile -Raw
+          $txt = $txt -replace '#define\s+GPSDK_VERSION\s+\d+', '#define GPSDK_VERSION 53'
+          Set-Content $importsFile $txt -NoNewline
+          
+          Write-Host "=== Conferindo imports.c atualizado ==="
+          Get-Content $importsFile | Select-String -Pattern 'GPSDK_VERSION' -Context 0,5
 
       - name: Ambiente MSVC x64
         uses: ilammy/msvc-dev-cmd@v1
@@ -59,4 +56,3 @@ jobs:
           name: SetlistQueue-Windows-x64
           path: build/out/SetlistQueue.dll
           if-no-files-found: error
-
