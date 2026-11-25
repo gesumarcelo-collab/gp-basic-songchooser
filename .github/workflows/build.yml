@@ -25,18 +25,32 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Baixar gp-sdk oficial e atualizar versao SDK para GP 5.3+
+      - name: Baixar gp-sdk oficial e atualizar versao SDK
         shell: pwsh
         run: |
           $repo = "https://github.com" + "/gigperformer/gp-sdk.git"
           git clone --depth 1 $repo gp-sdk
-          Get-ChildItem gp-sdk -Recurse -Include entry.cpp,types.h,GigPerformerAPI.h | ForEach-Object {
+          
+          # Atualiza qualquer definicao de GPSDK_VERSION nos headers
+          Get-ChildItem gp-sdk -Recurse -Include *.h,*.cpp | ForEach-Object {
             $txt = Get-Content $_.FullName -Raw
-            $txt = $txt -replace 'GPSDK_VERSION\s+\d+', 'GPSDK_VERSION 53'
-            $txt = $txt -replace '(GetGPSDKVersion\s*\([^)]*\)\s*\{\s*return\s+)\d+(\s*;)', '${1}53${2}'
-            Set-Content $_.FullName $txt -NoNewline
+            if ($txt -match 'GPSDK_VERSION') {
+              $txt = [regex]::Replace($txt, '(#define\s+GPSDK_VERSION\s+)\d+', '${1}53')
+              Set-Content $_.FullName $txt -NoNewline
+            }
           }
-          Select-String -Path "gp-sdk\**\entry.cpp" -Pattern "GetGPSDKVersion|GPSDK_VERSION"
+
+          # Garante que GetGPSDKVersion() em entry.cpp retorne 53 diretamente
+          $entryFiles = Get-ChildItem gp-sdk -Recurse -Filter "entry.cpp"
+          foreach ($file in $entryFiles) {
+            Write-Host "=== entry.cpp ANTES ==="
+            Get-Content $file.FullName
+            $content = Get-Content $file.FullName -Raw
+            $content = [regex]::Replace($content, '(GetGPSDKVersion\s*\([^)]*\)\s*\{)[^}]*(\})', '${1} return 53; ${2}')
+            Set-Content $file.FullName $content -NoNewline
+            Write-Host "=== entry.cpp DEPOIS ==="
+            Get-Content $file.FullName
+          }
 
       - name: Ambiente MSVC x64
         uses: ilammy/msvc-dev-cmd@v1
