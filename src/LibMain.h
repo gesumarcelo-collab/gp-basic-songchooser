@@ -34,6 +34,7 @@ class LibMain : public gigperformer::sdk::GigPerformerAPI
 
   protected:
     void Initialization() override;
+    void OnClose() override;
     std::string GetProductDescription() override;
 
     // Item de menu em "Extensions" que abre a janela
@@ -49,11 +50,12 @@ class LibMain : public gigperformer::sdk::GigPerformerAPI
   private:
     void openWindow();
     void destroyWindow();
-    void pushState(int currentSongOverride, int currentPartOverride);
-    std::string buildStateJson(int currentSongOverride, int currentPartOverride);
+    void pushState(int songOverride, int partOverride);
+    std::string buildStateJson(int songOverride, int partOverride);
 
     std::unique_ptr<choc::ui::WebView> webview;
     std::unique_ptr<choc::ui::DesktopWindow> window;
     bool closedByUser = false;
+    bool shuttingDown = false;
     std::string setlistName;
 };
