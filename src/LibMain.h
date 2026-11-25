@@ -1,13 +1,5 @@
 #pragma once
 
-// ---------------------------------------------------------------------------
-// ORDEM DOS INCLUDES IMPORTA:
-//   1) biblioteca padrao (a CHOC usa std::function / std::unique_ptr etc.)
-//   2) choc_Platform.h (define as macros de plataforma que choc_WebView.h verifica)
-//   3) headers da CHOC
-//   4) headers do GP SDK
-// ---------------------------------------------------------------------------
-
 // 1) Biblioteca padrao
 #include <algorithm>
 #include <cstddef>
@@ -43,7 +35,6 @@ class LibMain : public gigperformer::sdk::GigPerformerAPI
   protected:
     void Initialization() override;
     std::string GetProductDescription() override;
-    int GetGPSDKVersion() override;
 
     // Item de menu em "Extensions" que abre a janela
     int GetMenuCount() override;
