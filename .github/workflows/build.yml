@@ -31,13 +31,14 @@ jobs:
           $repo = "https://github.com" + "/gigperformer/gp-sdk.git"
           git clone --depth 1 $repo gp-sdk
           
-          Get-ChildItem gp-sdk -Recurse -Include *.cpp,*.h | ForEach-Object {
+          Get-ChildItem gp-sdk -Recurse -Include *.c,*.cpp,*.h | ForEach-Object {
             $txt = Get-Content $_.FullName -Raw
-            if ($txt -match 'GetGPSDKVersion') {
+            if ($txt -match 'GetGPSDKVersion|GPSDK_VERSION') {
               Write-Host "=== Arquivo encontrado: $($_.FullName) ==="
+              Get-Content $_.FullName | Select-String -Pattern 'GetGPSDKVersion|GPSDK_VERSION' -Context 0,4
               $txt = [regex]::Replace($txt, '(GetGPSDKVersion\s*\([^)]*\)\s*\{[^}]*return\s+)\d+(\s*;)', '${1}53${2}')
+              $txt = [regex]::Replace($txt, '(#define\s+GPSDK_VERSION\s+)\d+', '${1}53')
               Set-Content $_.FullName $txt -NoNewline
-              Get-Content $_.FullName | Select-String -Pattern 'GetGPSDKVersion' -Context 0,4
             }
           }
 
@@ -58,3 +59,4 @@ jobs:
           name: SetlistQueue-Windows-x64
           path: build/out/SetlistQueue.dll
           if-no-files-found: error
+
