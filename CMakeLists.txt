@@ -21,7 +21,7 @@ if(NOT EXISTS "${GPSDK_DIR}")
     find_package(Git REQUIRED)
     execute_process(
         COMMAND "${GIT_EXECUTABLE}" clone --depth 1
-                https://github.com "${GPSDK_DIR}"
+                "https://github.com" "${GPSDK_DIR}"
         RESULT_VARIABLE _git_result)
     if(NOT _git_result EQUAL 0)
         message(FATAL_ERROR "Falha ao clonar o gp-sdk")
