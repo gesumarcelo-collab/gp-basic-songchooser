@@ -111,7 +111,7 @@ int intArg(const choc::value::ValueView &args, int fallback)
     try
     {
         if (args.size() >= 1 && args.isString())
-            return std::stoi(std::string(args[0].getString()));
+            return std::stoi(std::string(args.getString()));
     }
     catch (...)
     {
@@ -124,7 +124,7 @@ std::string stringArg(const choc::value::ValueView &args)
     try
     {
         if (args.size() >= 1 && args.isString())
-            return std::string(args[0].getString());
+            return std::string(args.getString());
     }
     catch (...)
     {
@@ -150,11 +150,6 @@ std::string LibMain::GetProductDescription()
            "<Product Name=\"Setlist Queue\" Version=\"1.0.0\" BuildDate=\"" __DATE__ "\"></Product>"
            "<Description>Janela flutuante com setlist, fila visual e cores por musica</Description>"
            "</Library>";
-}
-
-int LibMain::GetGPSDKVersion()
-{
-    return 50;
 }
 
 int LibMain::GetMenuCount()
