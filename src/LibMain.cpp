@@ -20,6 +20,8 @@
 namespace
 {
 constexpr int kNoOverride = -1000000;
+constexpr char kQuote = '"';
+constexpr char kSlash = '\\';
 
 using WebViewPtr = std::unique_ptr<choc::ui::WebView>;
 using WindowPtr = std::unique_ptr<choc::ui::DesktopWindow>;
@@ -46,6 +48,16 @@ void pinCurrentDllInMemory()
 }
 #endif
 
+std::string qStr(const std::string &s)
+{
+    std::string r;
+    r.reserve(s.size() + 2);
+    r.push_back(kQuote);
+    r += s;
+    r.push_back(kQuote);
+    return r;
+}
+
 std::string jsonEscape(const std::string &s)
 {
     std::string out;
@@ -54,18 +66,18 @@ std::string jsonEscape(const std::string &s)
     {
         switch (c)
         {
-        case '"':  out += "\\\""; break;
-        case '\\': out += "\\\\"; break;
-        case '\n': out += "\\n";  break;
-        case '\r': out += "\\r";  break;
-        case '\t': out += "\\t";  break;
-        case '\b': out += "\\b";  break;
-        case '\f': out += "\\f";  break;
+        case '"':  out.push_back(kSlash); out.push_back(kQuote); break;
+        case '\\': out.push_back(kSlash); out.push_back(kSlash); break;
+        case '\n': out.push_back(kSlash); out.push_back('n');    break;
+        case '\r': out.push_back(kSlash); out.push_back('r');    break;
+        case '\t': out.push_back(kSlash); out.push_back('t');    break;
+        case '\b': out.push_back(kSlash); out.push_back('b');    break;
+        case '\f': out.push_back(kSlash); out.push_back('f');    break;
         default:
             if (c < 0x20)
             {
                 CharBuf8 buf{};
-                std::snprintf(buf.data(), buf.size(), "\\u%04x", c);
+                std::snprintf(buf.data(), buf.size(), "%cu%04x", kSlash, c);
                 out += buf.data();
             }
             else
@@ -232,19 +244,19 @@ std::string stringArg(const choc::value::ValueView &args)
 extern "C" void gpScriptOpen(GPRuntimeEngine *)
 {
     if (gInstance)
-        gInstance->InvokeMenu(0);
+        gInstance->openWindow();
 }
 
 extern "C" void gpScriptNext(GPRuntimeEngine *)
 {
     if (gInstance)
-        gInstance->OnOSCMessage("/SetlistQueue/Next", {});
+        gInstance->triggerStepCommand(1);
 }
 
 extern "C" void gpScriptPrev(GPRuntimeEngine *)
 {
     if (gInstance)
-        gInstance->OnOSCMessage("/SetlistQueue/Prev", {});
+        gInstance->triggerStepCommand(-1);
 }
 
 ExternalAPI_GPScriptFunctionDefinition gScriptFunctions[] = {
@@ -269,7 +281,6 @@ void LibMain::Initialization()
     registerCallback("OnSongPartChanged");
     registerCallback("OnSetlistChanged");
     registerCallback("OnWidgetValueChanged");
-    registerCallback("OnOSCMessage");
 
     listenForWidget("SetlistQueue", true);
     listenForWidget("SetlistQueueOpen", true);
@@ -284,16 +295,15 @@ void LibMain::OnClose()
     unregisterCallback("OnSongPartChanged");
     unregisterCallback("OnSetlistChanged");
     unregisterCallback("OnWidgetValueChanged");
-    unregisterCallback("OnOSCMessage");
     destroyWindow();
 }
 
 std::string LibMain::GetProductDescription()
 {
-    return "<Library>"
-           "<Product Name=\"SetlistQueue\" Version=\"1.3.0\" BuildDate=\"" __DATE__ "\"></Product>"
-           "<Description>Janela flutuante com setlist, song parts, busca e controle por widgets</Description>"
-           "</Library>";
+    return std::string("<Library><Product Name=") + qStr("SetlistQueue") +
+           " Version=" + qStr("1.3.1") +
+           " BuildDate=" + qStr(__DATE__) +
+           "></Product><Description>Setlist Queue com busca e widgets</Description></Library>";
 }
 
 int LibMain::GetMenuCount()
@@ -365,41 +375,6 @@ void LibMain::OnWidgetValueChanged(const std::string &widgetName, double newValu
     }
 }
 
-bool LibMain::OnOSCMessage(const std::string &address, const std::vector<std::string> &args)
-{
-    if (shuttingDown)
-        return false;
-
-    if (!args.empty())
-    {
-        try
-        {
-            if (std::stod(args.front()) < 0.5)
-                return true;
-        }
-        catch (...)
-        {
-        }
-    }
-
-    if (address == "/SetlistQueue" || address == "/SetlistQueue/Open" || address == "/SetlistQueueOpen")
-    {
-        openWindow();
-        return true;
-    }
-    if (address == "/SetlistQueue/Next" || address == "/SetlistQueueNext")
-    {
-        triggerStepCommand(1);
-        return true;
-    }
-    if (address == "/SetlistQueue/Prev" || address == "/SetlistQueuePrev")
-    {
-        triggerStepCommand(-1);
-        return true;
-    }
-    return false;
-}
-
 void LibMain::OnSongChanged(int, int newIndex)
 {
     if (!shuttingDown)
@@ -427,20 +402,22 @@ std::string LibMain::buildStateJson(int songOverride, int partOverride)
         count = 0;
 
     const int current = (songOverride != kNoOverride) ? songOverride : getCurrentSongIndex();
-const int currentPart = (partOverride != kNoOverride) ? partOverride : getCurrentSongpartIndex();
-const int step = pendingStep.exchange(0);
-std::string j = "{"setlist":"" + jsonEscape(setlistName) +
-"","current":" + std::to_string(current) +
-","currentPart":" + std::to_string(currentPart) +
-","step":" + std::to_string(step) +
-","songs":[";
-for (int i = 0; i < count; ++i)
+    const int currentPart = (partOverride != kNoOverride) ? partOverride : getCurrentSongpartIndex();
+    const int step = pendingStep.exchange(0);
+
+    std::string j = "{" + qStr("setlist") + ":" + qStr(jsonEscape(setlistName)) +
+                    "," + qStr("current") + ":" + std::to_string(current) +
+                    "," + qStr("currentPart") + ":" + std::to_string(currentPart) +
+                    "," + qStr("step") + ":" + std::to_string(step) +
+                    "," + qStr("songs") + ":[";
+
+    for (int i = 0; i < count; ++i)
 {
 if (i > 0)
 j += ',';
-j += "{"i":" + std::to_string(i) +
-","n":"" + jsonEscape(getSongName(i)) + """ +
-","parts":[";
+j += "{" + qStr("i") + ":" + std::to_string(i) +
+"," + qStr("n") + ":" + qStr(jsonEscape(getSongName(i))) +
+"," + qStr("parts") + ":[";
 int pCount = getSongpartCount(i);
 if (pCount < 0)
 pCount = 0;
@@ -448,8 +425,8 @@ for (int p = 0; p < pCount; ++p)
 {
 if (p > 0)
 j += ',';
-j += "{"i":" + std::to_string(p) +
-","n":"" + jsonEscape(getSongpartName(i, p)) + ""}";
+j += "{" + qStr("i") + ":" + std::to_string(p) +
+"," + qStr("n") + ":" + qStr(jsonEscape(getSongpartName(i, p))) + "}";
 }
 j += "]}";
 }
