@@ -558,8 +558,9 @@ Salvar
 
 
 
+const DEFAULT_FONT = "'Segoe UI', system-ui, sans-serif";
 const FONTS = [
-{ label: "Segoe UI (Padrão)", value: "'Segoe UI', system-ui, sans-serif" },
+{ label: "Segoe UI (Padrão)", value: DEFAULT_FONT },
 { label: "Arial", value: "Arial, Helvetica, sans-serif" },
 { label: "Arial Black (Pesada)", value: "'Arial Black', Gadget, sans-serif" },
 { label: "Impact (Condensada Palco)", value: "Impact, Charcoal, sans-serif" },
@@ -590,13 +591,17 @@ let lastStateKey = "";
 let isSyncing = false;
 let isDragging = false;
 let settings = {
-globalFont: FONTS.at(0).value,
+globalFont: DEFAULT_FONT,
 globalSize: 16,
 customOrder: {},
 songStyles: {}
 };
 let editingSongName = null;
 let dragSrcIndex = null;
+function itemAt(arr, idx) {
+if (!Array.isArray(arr) || idx < 0 || idx >= arr.length) return undefined;
+return arr.slice(idx, idx + 1).shift();
+}
 function focusSongList() {
 const listEl = document.getElementById("songList");
 if (listEl) {
@@ -812,7 +817,7 @@ const raw = await window.gp_loadSettings();
 if (raw) {
 const parsed = JSON.parse(raw);
 settings = {
-globalFont: parsed.globalFont || FONTS.at(0).value,
+globalFont: parsed.globalFont || DEFAULT_FONT,
 globalSize: Math.max(8, Math.min(42, Number(parsed.globalSize) || 16)),
 customOrder: parsed.customOrder || {},
 songStyles: parsed.songStyles || {}
@@ -848,7 +853,7 @@ const ordered = [];
 savedNames.forEach(name => {
 const foundIdx = remaining.findIndex(s => s.n === name);
 if (foundIdx !== -1) {
-ordered.push(remaining.splice(foundIdx, 1).at(0));
+ordered.push(remaining.splice(foundIdx, 1).shift());
 }
 });
 return ordered.concat(remaining);
@@ -863,7 +868,7 @@ targetVisualIdx = delta > 0 ? 0 : ordered.length - 1;
 } else {
 targetVisualIdx = Math.max(0, Math.min(ordered.length - 1, currentVisualIdx + delta));
 }
-const targetSong = ordered.at(targetVisualIdx);
+const targetSong = itemAt(ordered, targetVisualIdx);
 if (targetSong && window.gp_selectSong) {
 closePartsMenu();
 window.gp_selectSong(targetSong.i);
@@ -1018,7 +1023,7 @@ isDragging = false;
 item.classList.remove("drag-over");
 if (dragSrcIndex === null || dragSrcIndex === visualIdx) return;
 const currentList = getOrderedSongs();
-const moved = currentList.splice(dragSrcIndex, 1).at(0);
+const moved = currentList.splice(dragSrcIndex, 1).shift();
 currentList.splice(visualIdx, 0, moved);
 const key = gpState.setlist || "default";
 Reflect.set(settings.customOrder, key, currentList.map(s => s.n));
