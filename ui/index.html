@@ -5,17 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Setlist Queue</title>
 <style>
-  :root {
-    --bg: #121316;
-    --surface: #1b1d22;
-    --surface-hover: #252830;
-    --border: #2c303a;
-    --text: #f1f3f5;
-    --text-dim: #8b92a0;
-    --accent: #3b82f6;
-    --active-bg: #1e3a8a;
-    --active-border: #60a5fa;
-  }
   * {
     box-sizing: border-box;
     margin: 0;
@@ -23,8 +12,8 @@
     user-select: none;
   }
   body {
-    background: var(--bg);
-    color: var(--text);
+    background: #121316;
+    color: #f1f3f5;
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     height: 100vh;
     display: flex;
@@ -36,8 +25,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 14px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    background: #1b1d22;
+    border-bottom: 1px solid #2c303a;
     gap: 8px;
     flex-shrink: 0;
   }
@@ -51,7 +40,7 @@
   .setlist-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-dim);
+    color: #8b92a0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -64,9 +53,9 @@
     flex-shrink: 0;
   }
   button.icon-btn {
-    background: var(--surface-hover);
-    color: var(--text);
-    border: 1px solid var(--border);
+    background: #252830;
+    color: #f1f3f5;
+    border: 1px solid #2c303a;
     border-radius: 6px;
     padding: 5px 9px;
     font-size: 12px;
@@ -75,15 +64,14 @@
     align-items: center;
     justify-content: center;
     gap: 5px;
-    transition: background 0.15s, border-color 0.15s;
   }
   button.icon-btn:hover {
     background: #2f333d;
     border-color: #4b5563;
   }
   button.icon-btn.active {
-    background: var(--accent);
-    border-color: var(--accent);
+    background: #3b82f6;
+    border-color: #3b82f6;
     color: #fff;
   }
   button.search-trigger {
@@ -94,7 +82,7 @@
   #globalPanel {
     display: none;
     background: #17191e;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #2c303a;
     padding: 12px 14px;
     flex-direction: column;
     gap: 10px;
@@ -111,15 +99,15 @@
     font-size: 12px;
   }
   .control-row label {
-    color: var(--text-dim);
+    color: #8b92a0;
     min-width: 75px;
   }
   .control-row select,
   .control-row input[type="range"] {
     flex: 1;
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border);
+    background: #1b1d22;
+    color: #f1f3f5;
+    border: 1px solid #2c303a;
     border-radius: 5px;
     padding: 4px 6px;
     font-size: 12px;
@@ -127,8 +115,7 @@
   .size-badge {
     min-width: 34px;
     text-align: right;
-    font-variant-numeric: tabular-nums;
-    color: var(--text);
+    color: #f1f3f5;
     font-weight: 600;
   }
   #songList {
@@ -150,46 +137,40 @@
   .song-item {
     display: flex;
     align-items: center;
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: #1b1d22;
+    border: 1px solid #2c303a;
     border-left: 5px solid transparent;
     border-radius: 7px;
     padding: 8px 10px;
     cursor: pointer;
-    transition: transform 0.08s, background 0.12s, border-color 0.12s;
     gap: 8px;
     position: relative;
   }
   .song-item:hover {
-    background: var(--surface-hover);
+    background: #252830;
   }
   .song-item.current {
-    background: var(--active-bg);
-    border-color: var(--active-border);
-    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.3);
+    background: #1e3a8a;
+    border-color: #60a5fa;
   }
   .song-item.dragging {
     opacity: 0.45;
   }
   .song-item.drag-over {
-    border-top: 2px solid var(--accent);
+    border-top: 2px solid #3b82f6;
   }
   .drag-handle {
-    color: var(--text-dim);
+    color: #8b92a0;
     cursor: grab;
     font-size: 14px;
     padding: 2px 4px;
     opacity: 0.6;
   }
-  .drag-handle:hover {
-    opacity: 1;
-  }
   .song-num {
     font-size: 11px;
     font-weight: 700;
-    color: var(--text-dim);
+    color: #8b92a0;
     min-width: 22px;
-    font-variant-numeric: tabular-nums;
   }
   .song-item.current .song-num {
     color: #93c5fd;
@@ -222,7 +203,6 @@
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.12s, border-color 0.12s, transform 0.08s;
   }
   .part-chip:hover {
     background: rgba(59, 130, 246, 0.48);
@@ -233,7 +213,6 @@
     background: #3b82f6;
     border-color: #bfdbfe;
     color: #fff;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
   }
   .song-edit-btn {
     display: none;
@@ -269,9 +248,9 @@
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    color: var(--text-dim);
-    padding: 5px 8px 5px;
-    border-bottom: 1px solid var(--border);
+    color: #8b92a0;
+    padding: 5px 8px;
+    border-bottom: 1px solid #2c303a;
     margin-bottom: 3px;
     white-space: nowrap;
     overflow: hidden;
@@ -280,19 +259,15 @@
   .part-option {
     background: transparent;
     border: none;
-    color: var(--text);
+    color: #f1f3f5;
     text-align: left;
     padding: 8px 11px;
     border-radius: 5px;
     font-size: 15px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
   }
   .part-option:hover {
-    background: var(--accent);
+    background: #3b82f6;
     color: #fff;
   }
   .part-option.active-part {
@@ -325,7 +300,6 @@
     display: flex;
     flex-direction: column;
     gap: 11px;
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
   }
   .search-card {
     background: #181a1f;
@@ -338,7 +312,6 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.8);
   }
   .search-top {
     display: flex;
@@ -356,9 +329,6 @@
     outline: none;
     user-select: text;
   }
-  #searchInput:focus {
-    border-color: var(--accent);
-  }
   #searchResults {
     max-height: 185px;
     min-height: 80px;
@@ -367,51 +337,39 @@
     flex-direction: column;
     gap: 5px;
     background: #121316;
-    border: 1px solid var(--border);
+    border: 1px solid #2c303a;
     border-radius: 8px;
     padding: 6px;
-  }
-  #searchResults::-webkit-scrollbar {
-    width: 6px;
-  }
-  #searchResults::-webkit-scrollbar-thumb {
-    background: #2f333d;
-    border-radius: 4px;
   }
   .search-result-item {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: #1b1d22;
+    border: 1px solid #2c303a;
     border-radius: 6px;
     padding: 9px 11px;
-    color: var(--text);
+    color: #f1f3f5;
     font-size: 15px;
     text-align: left;
     cursor: pointer;
   }
-  .search-result-item:hover,
-  .search-result-item:active {
-    background: var(--accent);
-    border-color: #60a5fa;
+  .search-result-item:hover {
+    background: #3b82f6;
     color: #fff;
   }
   .search-result-num {
     font-size: 12px;
     font-weight: 700;
-    color: var(--text-dim);
+    color: #8b92a0;
     min-width: 22px;
-  }
-  .search-result-item:hover .search-result-num {
-    color: #dbeafe;
   }
   .vk-board {
     display: flex;
     flex-direction: column;
     gap: 5px;
     background: #121316;
-    border: 1px solid var(--border);
+    border: 1px solid #2c303a;
     border-radius: 8px;
     padding: 7px;
   }
@@ -434,12 +392,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    touch-action: manipulation;
   }
   .vk-key:active {
-    background: var(--accent);
-    border-color: #93c5fd;
-    transform: scale(0.96);
+    background: #3b82f6;
   }
   .vk-key.wide {
     flex: 1.7;
@@ -461,70 +416,73 @@
     font-size: 13px;
     font-weight: 700;
     color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
   .swatches {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
   }
-.swatch {
-width: 22px;
-height: 22px;
-border-radius: 5px;
-border: 2px solid rgba(255, 255, 255, 0.2);
-cursor: pointer;
-}
-.swatch:hover {
-transform: scale(1.1);
-}
-.modal-footer {
-display: flex;
-justify-content: space-between;
-gap: 8px;
-margin-top: 4px;
-}
-.btn-secondary {
-background: #2c303a;
-color: var(--text);
-border: none;
-border-radius: 6px;
-padding: 6px 10px;
-font-size: 12px;
-cursor: pointer;
-}
-.btn-primary {
-background: var(--accent);
-color: #fff;
-border: none;
-border-radius: 6px;
-padding: 6px 14px;
-font-size: 12px;
-font-weight: 600;
-cursor: pointer;
-}
-.empty-state {
-text-align: center;
-color: var(--text-dim);
-font-size: 13px;
-padding: 32px 16px;
-}
-
-
-🔍
-Setlist
-
-
-↺ Ordem
-🎨 Estilo
-
-Fonte padrão
-Tamanho
-16px
-
-
+  .swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+  }
+  .modal-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .btn-secondary {
+    background: #2c303a;
+    color: #f1f3f5;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .empty-state {
+    text-align: center;
+    color: #8b92a0;
+    font-size: 13px;
+    padding: 32px 16px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <button class="icon-btn search-trigger" id="btnSearch" title="Buscar música">🔍</button>
+    <div class="setlist-title" id="setlistTitle">Setlist</div>
+  </div>
+  <div class="header-actions">
+    <button class="icon-btn" id="btnResetOrder" title="Restaurar ordem original">↺ Ordem</button>
+    <button class="icon-btn" id="btnPalette" title="Configurar estilo">🎨 Estilo</button>
+  </div>
+</header>
+<section id="globalPanel">
+  <div class="control-row">
+    <label for="globalFont">Fonte padrão</label>
+    <select id="globalFont"></select>
+  </div>
+  <div class="control-row">
+    <label for="globalSize">Tamanho</label>
+    <input type="range" id="globalSize" min="8" max="42" value="16">
+    <span class="size-badge" id="globalSizeVal">16px</span>
+  </div>
 Limpar estilos individuais
 
 
@@ -542,7 +500,7 @@ Limpar estilos individuais
 
 
 Personalizar Música
-Cor Texto
+Texto
 Fundo
 Fonte
 Tamanho
@@ -604,9 +562,7 @@ return arr.slice(idx, idx + 1).shift();
 }
 function focusSongList() {
 const listEl = document.getElementById("songList");
-if (listEl) {
-listEl.focus({ preventScroll: true });
-}
+if (listEl) listEl.focus({ preventScroll: true });
 }
 function isAnyModalOpen() {
 const m1 = document.getElementById("songModalBackdrop");
