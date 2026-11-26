@@ -132,7 +132,7 @@ setInterval(updateClock,1000);
 
 window.addEventListener("resize",()=>{
   const c=getColCount();
-  if(c!==lastColCount){lastColCount=c;render()}
+  if(!(c===lastColCount)){lastColCount=c;render()}
 });
 
 function fillFonts(sel,inh){
@@ -188,7 +188,7 @@ const songs=gpState.songs||[],k=gpState.setlist||"default";
 const saved=Object.prototype.hasOwnProperty.call(settings.customOrder,k)?Reflect.get(settings.customOrder,k):null;
 if(!Array.isArray(saved)||!saved.length)return songs;
 const rem=[...songs],ord=[];
-saved.forEach(n=>{const idx=rem.findIndex(s=>s.n===n);if(idx!==-1)ord.push(rem.splice(idx,1).shift())});
+saved.forEach(n=>{const idx=rem.findIndex(s=>s.n===n);if(!(idx===-1))ord.push(rem.splice(idx,1).shift())});
 return ord.concat(rem);
 }
 function stepSong(d){
@@ -202,8 +202,8 @@ function applyState(p){
 if(!p||typeof p!=="object")return;
 const stp=Number(p.step)||0;
 const k=JSON.stringify({s:p.setlist,c:p.current,p:p.currentPart,l:p.songs});
-if(k!==lastKey){lastKey=k;gpState=p;render()}
-if(stp!==0)stepSong(stp);
+if(!(k===lastKey)){lastKey=k;gpState=p;render()}
+if(!(stp===0))stepSong(stp);
 }
 window.gpPush=applyState;
 async function syncGP(){
@@ -269,11 +269,11 @@ if(targetCol)targetCol.appendChild(item);
 });
 if(curEl)curEl.scrollIntoView({block:"nearest",behavior:"smooth"});
 }
-
-
-
-
-
+function openParts(x,y,song){
+const m=el("partsMenu");m.innerHTML="";
+const h=document.createElement("div");h.className="phead";h.textContent="Song Parts — "+song.n;m.appendChild(h);
+(song.parts||[]).forEach(p=>{
+const b=document.createElement("button");b.type="button";b.className="popt";b.textContent=p.n;
 b.onclick=e=>{e.stopPropagation();m.classList.remove("open");focusList();if(window.gp_selectSongPart){window.gp_selectSongPart([song.i,p.i]);setTimeout(syncGP,60)}};
 m.appendChild(b);
 });
@@ -306,7 +306,7 @@ el("btnMCancel").onclick=()=>{el("songModal").classList.remove("open");focusList
 el("btnMClear").onclick=()=>{if(editName){Reflect.deleteProperty(settings.songStyles,editName);saveSet();render()}el("songModal").classList.remove("open");focusList()};
 el("btnMSave").onclick=()=>{
 if(editName){
-Reflect.set(settings.songStyles,editName,{color:el("mColor").value!=="#f1f3f5"?el("mColor").value:"",bg:el("mBg").value!=="#1b1d22"?el("mBg").value:"",font:el("mFont").value||"",size:Number(el("mSize").value)||16});
+Reflect.set(settings.songStyles,editName,{color:!(el("mColor").value==="#f1f3f5")?el("mColor").value:"",bg:!(el("mBg").value==="#1b1d22")?el("mBg").value:"",font:el("mFont").value||"",size:Number(el("mSize").value)||16});
 saveSet();render();
 }
 el("songModal").classList.remove("open");focusList();
