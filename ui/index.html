@@ -186,7 +186,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 7px;
   }
   .song-name {
     white-space: nowrap;
@@ -197,22 +197,22 @@
   .inline-parts {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 6px;
     margin-top: 2px;
   }
   .part-chip {
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    color: #e2e8f0;
-    border-radius: 5px;
-    padding: 4px 9px;
-    font-size: 11px;
+    background: rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #f1f5f9;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.12s, border-color 0.12s, transform 0.08s;
   }
   .part-chip:hover {
-    background: rgba(59, 130, 246, 0.45);
+    background: rgba(59, 130, 246, 0.48);
     border-color: #93c5fd;
     color: #fff;
   }
@@ -220,7 +220,7 @@
     background: #3b82f6;
     border-color: #bfdbfe;
     color: #fff;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
   }
   .song-edit-btn {
     display: none;
@@ -242,22 +242,22 @@
     border: 1px solid #3f4654;
     border-radius: 8px;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
-    min-width: 190px;
-    max-width: 270px;
+    min-width: 200px;
+    max-width: 290px;
     z-index: 1000;
-    padding: 5px;
+    padding: 6px;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
   }
   #partsMenu.open {
     display: flex;
   }
   .parts-header {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     color: var(--text-dim);
-    padding: 5px 8px 4px;
+    padding: 5px 8px 5px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 3px;
     white-space: nowrap;
@@ -269,9 +269,9 @@
     border: none;
     color: var(--text);
     text-align: left;
-    padding: 7px 10px;
+    padding: 8px 11px;
     border-radius: 5px;
-    font-size: 13px;
+    font-size: 15px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -454,6 +454,12 @@ songStyles: {}
 };
 let editingSongName = null;
 let dragSrcIndex = null;
+function focusSongList() {
+const listEl = document.getElementById("songList");
+if (listEl) {
+listEl.focus({ preventScroll: true });
+}
+}
 function populateFontSelect(selectEl, includeInherit) {
 selectEl.innerHTML = "";
 if (includeInherit) {
@@ -524,7 +530,7 @@ document.getElementById("globalSize").value = settings.globalSize;
 document.getElementById("globalSizeVal").textContent = settings.globalSize + "px";
 await syncFromGP();
 render();
-document.getElementById("songList").focus();
+focusSongList();
 setInterval(syncFromGP, 250);
 }
 window.gpPush = function(newState) {
@@ -571,7 +577,7 @@ window.gp_selectSong(targetSong.i);
 setTimeout(syncFromGP, 60);
 }
 }
-document.addEventListener("keydown", (e) => {
+window.addEventListener("keydown", (e) => {
 const modalOpen = document.getElementById("songModalBackdrop").classList.contains("open");
 const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : "";
 if (modalOpen || tag === "SELECT" || tag === "INPUT") {
@@ -579,12 +585,20 @@ return;
 }
 if (e.key === "ArrowDown" || e.key === "PageDown") {
 e.preventDefault();
+e.stopPropagation();
 stepSong(1);
 } else if (e.key === "ArrowUp" || e.key === "PageUp") {
 e.preventDefault();
+e.stopPropagation();
 stepSong(-1);
 } else if (e.key === "Escape") {
 closePartsMenu();
+}
+}, true);
+window.addEventListener("focus", () => {
+const modalOpen = document.getElementById("songModalBackdrop").classList.contains("open");
+if (!modalOpen) {
+focusSongList();
 }
 });
 function render() {
@@ -631,7 +645,6 @@ nameEl.textContent = song.n;
 nameEl.style.fontFamily = st.font || settings.globalFont;
 nameEl.style.fontSize = (st.size || settings.globalSize) + "px";
 main.appendChild(nameEl);
-// Quando a musica esta selecionada e tem mais de 1 parte, exibe os botoes das partes
 if (isCurrent && Array.isArray(song.parts) && song.parts.length > 1) {
 const partsRow = document.createElement("div");
 partsRow.className = "inline-parts";
@@ -643,8 +656,9 @@ chip.className = "part-chip" + (isPartActive ? " active" : "");
 chip.textContent = p.n;
 chip.onclick = (e) => {
 e.stopPropagation();
+chip.blur();
 closePartsMenu();
-listEl.focus();
+focusSongList();
 if (window.gp_selectSongPart) {
 window.gp_selectSongPart([song.i, p.i]);
 setTimeout(syncFromGP, 60);
@@ -669,7 +683,7 @@ item.appendChild(main);
 item.appendChild(editBtn);
 item.onclick = () => {
 closePartsMenu();
-listEl.focus();
+focusSongList();
 if (window.gp_selectSong) {
 window.gp_selectSong(song.i);
 setTimeout(syncFromGP, 60);
@@ -742,6 +756,7 @@ btn.textContent = p.n;
 btn.onclick = (e) => {
 e.stopPropagation();
 closePartsMenu();
+focusSongList();
 if (window.gp_selectSongPart) {
 window.gp_selectSongPart([song.i, p.i]);
 setTimeout(syncFromGP, 60);
@@ -814,6 +829,7 @@ document.getElementById("modalSizeVal").textContent = e.target.value + "px";
 };
 document.getElementById("btnModalCancel").onclick = () => {
 document.getElementById("songModalBackdrop").classList.remove("open");
+focusSongList();
 };
 document.getElementById("btnModalClear").onclick = () => {
 if (editingSongName) {
@@ -822,6 +838,7 @@ saveSettings();
 render();
 }
 document.getElementById("songModalBackdrop").classList.remove("open");
+focusSongList();
 };
 document.getElementById("btnModalSave").onclick = () => {
 if (editingSongName) {
@@ -839,6 +856,7 @@ saveSettings();
 render();
 }
 document.getElementById("songModalBackdrop").classList.remove("open");
+focusSongList();
 };
 loadInitialData();
   </script>
