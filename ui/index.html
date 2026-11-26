@@ -19,7 +19,7 @@
   .row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}
   .row label{color:#8b92a0;min-width:68px}
   .row select,.row input[type=range]{flex:1;background:#1b1d22;color:#f1f3f5;border:1px solid #2c303a;border-radius:5px;padding:4px;font-size:12px}
-  #songList{flex:1;overflow-y:auto;padding:10px;display:flex;align-items:flex-start;gap:8px;outline:none}
+  #songList{flex:1;overflow-y:auto;padding:10px;display:flex;align-items:flex-start;gap:8px;outline:none;position:relative}
   #songList::-webkit-scrollbar{width:7px}
   #songList::-webkit-scrollbar-thumb{background:#2f333d;border-radius:4px}
   .song-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
@@ -233,9 +233,32 @@ if(syncing||dragging||!window.gp_getState)return;
 syncing=true;
 try{const r=await window.gp_getState();if(r)applyState(JSON.parse(r))}catch(e){}finally{syncing=false}
 }
+function ensureScrollLookahead(list,curEl){
+if(!list||!curEl)return;
+const viewH=list.clientHeight;
+const itemTop=curEl.offsetTop;
+const itemBottom=itemTop+curEl.offsetHeight;
+const curScroll=list.scrollTop;
+const preferredTop=Math.round(viewH0.22);
+const bottomTrigger=curScroll+viewH0.58;
+const topTrigger=curScroll+12;
+if(itemBottom>bottomTrigger||itemTop>curScroll+viewH*0.48){
+const targetScroll=Math.max(0,itemTop-preferredTop);
+if(Math.abs(targetScroll-curScroll)>18){
+list.scrollTo({top:targetScroll,behavior:"smooth"});
+}
+}else if(itemTop<topTrigger){
+const targetScroll=Math.max(0,itemTop-preferredTop);
+if(Math.abs(targetScroll-curScroll)>18){
+list.scrollTo({top:targetScroll,behavior:"smooth"});
+}
+}
+}
 function render(){
 el("setlistTitle").textContent=gpState.setlist||"Setlist";
-const list=el("songList");list.innerHTML="";
+const list=el("songList");
+const prevScroll=list.scrollTop;
+list.innerHTML="";
 const ord=getOrdered();
 if(!ord.length){list.innerHTML='Nenhuma música encontrada no setlist atual do Gig Performer.';return}
 const numCols=getColCount();
@@ -289,7 +312,8 @@ Reflect.set(settings.customOrder,gpState.setlist||"default",curL.map(s=>s.n));sa
 const targetCol=at(cols,idx%numCols);
 if(targetCol)targetCol.appendChild(item);
 });
-if(curEl)curEl.scrollIntoView({block:"nearest",behavior:"smooth"});
+list.scrollTop=prevScroll;
+if(curEl)ensureScrollLookahead(list,curEl);
 }
 function openParts(x,y,song){
 const m=el("partsMenu");m.innerHTML="";
