@@ -586,7 +586,7 @@ const VK_ROWS = [
 ["Z", "X", "C", "V", "B", "N", "M", "-", "⌫"]
 ];
 let gpState = { setlist: "Setlist", current: -1, currentPart: -1, songs: [] };
-let lastStateRaw = "";
+let lastStateKey = "";
 let isSyncing = false;
 let isDragging = false;
 let settings = {
@@ -643,7 +643,6 @@ document.getElementById("modalBgColor").value = hex;
 };
 swatchesEl.appendChild(btn);
 });
-// Construir teclado virtual sensivel ao toque
 function buildVirtualKeyboard() {
 const board = document.getElementById("virtualKeyboard");
 board.innerHTML = "";
@@ -669,7 +668,6 @@ rowEl.appendChild(keyBtn);
 });
 board.appendChild(rowEl);
 });
-// Linha inferior: Limpar, Espaco, Fechar
 const bottomRow = document.createElement("div");
 bottomRow.className = "vk-row";
 const clearBtn = document.createElement("button");
@@ -765,15 +763,31 @@ if (window.gp_saveSettings) {
 window.gp_saveSettings(JSON.stringify(settings));
 }
 }
+function applyStateObject(parsed) {
+if (!parsed || typeof parsed !== "object") return;
+const pendingStep = Number(parsed.step) || 0;
+const stateKey = JSON.stringify({
+setlist: parsed.setlist,
+current: parsed.current,
+currentPart: parsed.currentPart,
+songs: parsed.songs
+});
+if (stateKey !== lastStateKey) {
+lastStateKey = stateKey;
+gpState = parsed;
+render();
+}
+if (pendingStep !== 0) {
+stepSong(pendingStep);
+}
+}
 async function syncFromGP() {
 if (isSyncing || isDragging || !window.gp_getState) return;
 isSyncing = true;
 try {
 const rawState = await window.gp_getState();
-if (rawState && rawState !== lastStateRaw) {
-lastStateRaw = rawState;
-gpState = JSON.parse(rawState);
-render();
+if (rawState) {
+applyStateObject(JSON.parse(rawState));
 }
 } catch (e) {
 } finally {
@@ -801,17 +815,10 @@ document.getElementById("globalSizeVal").textContent = settings.globalSize + "px
 await syncFromGP();
 render();
 focusSongList();
-setInterval(syncFromGP, 250);
+setInterval(syncFromGP, 150);
 }
 window.gpPush = function(newState) {
-if (newState && typeof newState === "object") {
-const serialized = JSON.stringify(newState);
-if (serialized !== lastStateRaw) {
-lastStateRaw = serialized;
-gpState = newState;
-render();
-}
-}
+applyStateObject(newState);
 };
 function getOrderedSongs() {
 const songs = gpState.songs || [];
