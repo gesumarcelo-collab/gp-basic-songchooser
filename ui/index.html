@@ -186,7 +186,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 6px;
   }
   .song-name {
     white-space: nowrap;
@@ -194,12 +194,33 @@
     text-overflow: ellipsis;
     line-height: 1.25;
   }
-  .active-part-tag {
-    font-size: 10px;
-    color: #93c5fd;
+  .inline-parts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 2px;
+  }
+  .part-chip {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #e2e8f0;
+    border-radius: 5px;
+    padding: 4px 9px;
+    font-size: 11px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, transform 0.08s;
+  }
+  .part-chip:hover {
+    background: rgba(59, 130, 246, 0.45);
+    border-color: #93c5fd;
+    color: #fff;
+  }
+  .part-chip.active {
+    background: #3b82f6;
+    border-color: #bfdbfe;
+    color: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
   }
   .song-edit-btn {
     display: none;
@@ -401,13 +422,13 @@
 </div>
 <script>
   const FONTS = [
-    { label: "Segoe UI (Padrão)", value: "'Segoe UI', system-ui, sans-serif" },
-    { label: "Arial", value: "Arial, Helvetica, sans-serif" },
-    { label: "Arial Black (Pesada)", value: "'Arial Black', Gadget, sans-serif" },
-    { label: "Impact (Condensada Palco)", value: "Impact, Charcoal, sans-serif" },
-    { label: "Trebuchet MS", value: "'Trebuchet MS', Helvetica, sans-serif" },
-    { label: "Verdana (Larga)", value: "Verdana, Geneva, sans-serif" },
-    { label: "Tahoma", value: "Tahoma, Geneva, sans-serif" },
+{ label: "Segoe UI (Padrão)", value: "'Segoe UI', system-ui, sans-serif" },
+{ label: "Arial", value: "Arial, Helvetica, sans-serif" },
+{ label: "Arial Black (Pesada)", value: "'Arial Black', Gadget, sans-serif" },
+{ label: "Impact (Condensada Palco)", value: "Impact, Charcoal, sans-serif" },
+{ label: "Trebuchet MS", value: "'Trebuchet MS', Helvetica, sans-serif" },
+{ label: "Verdana (Larga)", value: "Verdana, Geneva, sans-serif" },
+{ label: "Tahoma", value: "Tahoma, Geneva, sans-serif" },
 { label: "Calibri", value: "Calibri, Candara, sans-serif" },
 { label: "Century Gothic", value: "'Century Gothic', AppleGothic, sans-serif" },
 { label: "Georgia (Serif)", value: "Georgia, serif" },
@@ -610,14 +631,28 @@ nameEl.textContent = song.n;
 nameEl.style.fontFamily = st.font || settings.globalFont;
 nameEl.style.fontSize = (st.size || settings.globalSize) + "px";
 main.appendChild(nameEl);
-if (isCurrent && Array.isArray(song.parts) && song.parts.length > 0 && gpState.currentPart >= 0) {
-const partObj = song.parts.find(p => p.i === gpState.currentPart);
-if (partObj) {
-const partBadge = document.createElement("div");
-partBadge.className = "active-part-tag";
-partBadge.textContent = "▸ " + partObj.n;
-main.appendChild(partBadge);
+// Quando a musica esta selecionada e tem mais de 1 parte, exibe os botoes das partes
+if (isCurrent && Array.isArray(song.parts) && song.parts.length > 1) {
+const partsRow = document.createElement("div");
+partsRow.className = "inline-parts";
+song.parts.forEach(p => {
+const chip = document.createElement("button");
+chip.type = "button";
+const isPartActive = (p.i === gpState.currentPart);
+chip.className = "part-chip" + (isPartActive ? " active" : "");
+chip.textContent = p.n;
+chip.onclick = (e) => {
+e.stopPropagation();
+closePartsMenu();
+listEl.focus();
+if (window.gp_selectSongPart) {
+window.gp_selectSongPart([song.i, p.i]);
+setTimeout(syncFromGP, 60);
 }
+};
+partsRow.appendChild(chip);
+});
+main.appendChild(partsRow);
 }
 const editBtn = document.createElement("button");
 editBtn.type = "button";
