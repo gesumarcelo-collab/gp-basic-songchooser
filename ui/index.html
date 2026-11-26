@@ -191,12 +191,34 @@ const rem=[...songs],ord=[];
 saved.forEach(n=>{const idx=rem.findIndex(s=>s.n===n);if(!(idx===-1))ord.push(rem.splice(idx,1).shift())});
 return ord.concat(rem);
 }
+function buildStepQueue(){
+const ord=getOrdered();
+const q=[];
+ord.forEach(song=>{
+const parts=Array.isArray(song.parts)&&song.parts.length>0?song.parts:[{i:0,n:""}];
+parts.forEach(p=>{
+q.push({songIdx:song.i,partIdx:p.i});
+});
+});
+return q;
+}
 function stepSong(d){
-const ord=getOrdered();if(!ord.length)return;
-const cur=ord.findIndex(s=>s.i===gpState.current);
-const tgt=cur===-1?(d>0?0:ord.length-1):Math.max(0,Math.min(ord.length-1,cur+d));
-const s=at(ord,tgt);
-if(s&&window.gp_selectSong){el("partsMenu").classList.remove("open");window.gp_selectSong(s.i);setTimeout(syncGP,60)}
+const q=buildStepQueue();
+if(!q.length)return;
+const curPart=gpState.currentPart<0?0:gpState.currentPart;
+let curPos=q.findIndex(item=>item.songIdx===gpState.current&&item.partIdx===curPart);
+if(curPos===-1)curPos=q.findIndex(item=>item.songIdx===gpState.current);
+const tgtPos=curPos===-1?(d>0?0:q.length-1):Math.max(0,Math.min(q.length-1,curPos+d));
+const target=at(q,tgtPos);
+if(!target)return;
+el("partsMenu").classList.remove("open");
+if(window.gp_selectSongPart){
+window.gp_selectSongPart([target.songIdx,target.partIdx]);
+setTimeout(syncGP,60);
+}else if(window.gp_selectSong){
+window.gp_selectSong(target.songIdx);
+setTimeout(syncGP,60);
+}
 }
 function applyState(p){
 if(!p||typeof p!=="object")return;
