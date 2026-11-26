@@ -604,8 +604,9 @@ listEl.focus({ preventScroll: true });
 }
 }
 function isAnyModalOpen() {
-return document.getElementById("songModalBackdrop").classList.contains("open") ||
-document.getElementById("searchModalBackdrop").classList.contains("open");
+const m1 = document.getElementById("songModalBackdrop");
+const m2 = document.getElementById("searchModalBackdrop");
+return (m1 && m1.classList.contains("open")) || (m2 && m2.classList.contains("open"));
 }
 function normalizeText(str) {
 return String(str || "")
@@ -614,6 +615,7 @@ return String(str || "")
 .toLowerCase();
 }
 function populateFontSelect(selectEl, includeInherit) {
+if (!selectEl) return;
 selectEl.innerHTML = "";
 if (includeInherit) {
 const opt = document.createElement("option");
@@ -632,6 +634,7 @@ selectEl.appendChild(opt);
 populateFontSelect(document.getElementById("globalFont"), false);
 populateFontSelect(document.getElementById("modalFont"), true);
 const swatchesEl = document.getElementById("bgSwatches");
+if (swatchesEl) {
 SWATCH_COLORS.forEach(hex => {
 const btn = document.createElement("button");
 btn.type = "button";
@@ -639,14 +642,17 @@ btn.className = "swatch";
 btn.style.background = hex;
 btn.title = hex;
 btn.onclick = () => {
-document.getElementById("modalBgColor").value = hex;
+const bgInput = document.getElementById("modalBgColor");
+if (bgInput) bgInput.value = hex;
 };
 swatchesEl.appendChild(btn);
 });
+}
 function buildVirtualKeyboard() {
 const board = document.getElementById("virtualKeyboard");
-board.innerHTML = "";
 const inputEl = document.getElementById("searchInput");
+if (!board || !inputEl) return;
+board.innerHTML = "";
 VK_ROWS.forEach(rowKeys => {
 const rowEl = document.createElement("div");
 rowEl.className = "vk-row";
@@ -705,18 +711,23 @@ buildVirtualKeyboard();
 function openSearchModal() {
 closePartsMenu();
 const inputEl = document.getElementById("searchInput");
+const backdrop = document.getElementById("searchModalBackdrop");
+if (!inputEl || !backdrop) return;
 inputEl.value = "";
-document.getElementById("searchModalBackdrop").classList.add("open");
+backdrop.classList.add("open");
 renderSearchResults();
 setTimeout(() => inputEl.focus(), 30);
 }
 function closeSearchModal() {
-document.getElementById("searchModalBackdrop").classList.remove("open");
+const backdrop = document.getElementById("searchModalBackdrop");
+if (backdrop) backdrop.classList.remove("open");
 focusSongList();
 }
 function renderSearchResults() {
 const resultsEl = document.getElementById("searchResults");
-const query = normalizeText(document.getElementById("searchInput").value).trim();
+const inputEl = document.getElementById("searchInput");
+if (!resultsEl || !inputEl) return;
+const query = normalizeText(inputEl.value).trim();
 resultsEl.innerHTML = "";
 const ordered = getOrderedSongs();
 const matches = ordered
@@ -809,9 +820,12 @@ songStyles: parsed.songStyles || {}
 }
 }
 } catch (e) {}
-document.getElementById("globalFont").value = settings.globalFont;
-document.getElementById("globalSize").value = settings.globalSize;
-document.getElementById("globalSizeVal").textContent = settings.globalSize + "px";
+const gFont = document.getElementById("globalFont");
+const gSize = document.getElementById("globalSize");
+const gSizeVal = document.getElementById("globalSizeVal");
+if (gFont) gFont.value = settings.globalFont;
+if (gSize) gSize.value = settings.globalSize;
+if (gSizeVal) gSizeVal.textContent = settings.globalSize + "px";
 await syncFromGP();
 render();
 focusSongList();
@@ -823,7 +837,9 @@ applyStateObject(newState);
 function getOrderedSongs() {
 const songs = gpState.songs || [];
 const key = gpState.setlist || "default";
-const savedNames = settings.customOrder.hasOwnProperty(key) ? settings.customOrder.valueOf()[key] : null;
+const savedNames = Object.prototype.hasOwnProperty.call(settings.customOrder, key)
+? Reflect.get(settings.customOrder, key)
+: null;
 if (!Array.isArray(savedNames) || savedNames.length === 0) {
 return songs;
 }
@@ -856,7 +872,8 @@ setTimeout(syncFromGP, 60);
 }
 window.addEventListener("keydown", (e) => {
 if (e.key === "Escape") {
-if (document.getElementById("searchModalBackdrop").classList.contains("open")) {
+const sModal = document.getElementById("searchModalBackdrop");
+if (sModal && sModal.classList.contains("open")) {
 closeSearchModal();
 return;
 }
@@ -883,8 +900,10 @@ focusSongList();
 }
 });
 function render() {
-document.getElementById("setlistTitle").textContent = gpState.setlist || "Setlist";
+const titleEl = document.getElementById("setlistTitle");
+if (titleEl) titleEl.textContent = gpState.setlist || "Setlist";
 const listEl = document.getElementById("songList");
+if (!listEl) return;
 listEl.innerHTML = "";
 const ordered = getOrderedSongs();
 if (ordered.length === 0) {
@@ -1014,6 +1033,7 @@ currentItemEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 function openPartsMenu(x, y, song) {
 const menu = document.getElementById("partsMenu");
+if (!menu) return;
 menu.innerHTML = "";
 const header = document.createElement("div");
 header.className = "parts-header";
@@ -1057,17 +1077,20 @@ menu.style.left = Math.max(8, posX) + "px";
 menu.style.top = Math.max(8, posY) + "px";
 }
 function closePartsMenu() {
-document.getElementById("partsMenu").classList.remove("open");
+const menu = document.getElementById("partsMenu");
+if (menu) menu.classList.remove("open");
 }
 document.addEventListener("click", closePartsMenu);
 window.addEventListener("blur", closePartsMenu);
 const btnPalette = document.getElementById("btnPalette");
 const globalPanel = document.getElementById("globalPanel");
+if (btnPalette && globalPanel) {
 btnPalette.onclick = () => {
 const isOpen = globalPanel.classList.toggle("open");
 btnPalette.classList.toggle("active", isOpen);
 document.body.classList.toggle("edit-mode", isOpen);
 };
+}
 document.getElementById("globalFont").onchange = (e) => {
 settings.globalFont = e.target.value;
 saveSettings();
@@ -1096,14 +1119,21 @@ editingSongName = songName;
 const st = Object.prototype.hasOwnProperty.call(settings.songStyles, songName)
 ? Reflect.get(settings.songStyles, songName)
 : {};
-document.getElementById("modalSongTitle").textContent = songName;
-document.getElementById("modalTextColor").value = st.color || "#f1f3f5";
-document.getElementById("modalBgColor").value = st.bg || "#1b1d22";
-document.getElementById("modalFont").value = st.font || "";
+const tEl = document.getElementById("modalSongTitle");
+const cEl = document.getElementById("modalTextColor");
+const bEl = document.getElementById("modalBgColor");
+const fEl = document.getElementById("modalFont");
+const sEl = document.getElementById("modalSize");
+const vEl = document.getElementById("modalSizeVal");
+const mEl = document.getElementById("songModalBackdrop");
+if (tEl) tEl.textContent = songName;
+if (cEl) cEl.value = st.color || "#f1f3f5";
+if (bEl) bEl.value = st.bg || "#1b1d22";
+if (fEl) fEl.value = st.font || "";
 const sz = st.size || settings.globalSize;
-document.getElementById("modalSize").value = sz;
-document.getElementById("modalSizeVal").textContent = st.size ? (st.size + "px") : "Padrão";
-document.getElementById("songModalBackdrop").classList.add("open");
+if (sEl) sEl.value = sz;
+if (vEl) vEl.textContent = st.size ? (st.size + "px") : "Padrão";
+if (mEl) mEl.classList.add("open");
 }
 document.getElementById("modalSize").oninput = (e) => {
 document.getElementById("modalSizeVal").textContent = e.target.value + "px";
@@ -1123,10 +1153,14 @@ focusSongList();
 };
 document.getElementById("btnModalSave").onclick = () => {
 if (editingSongName) {
-const color = document.getElementById("modalTextColor").value;
-const bg = document.getElementById("modalBgColor").value;
-const font = document.getElementById("modalFont").value;
-const size = Math.max(8, Math.min(42, Number(document.getElementById("modalSize").value) || 16));
+const cEl = document.getElementById("modalTextColor");
+const bEl = document.getElementById("modalBgColor");
+const fEl = document.getElementById("modalFont");
+const sEl = document.getElementById("modalSize");
+const color = cEl ? cEl.value : "#f1f3f5";
+const bg = bEl ? bEl.value : "#1b1d22";
+const font = fEl ? fEl.value : "";
+const size = Math.max(8, Math.min(42, Number(sEl ? sEl.value : 16) || 16));
 Reflect.set(settings.songStyles, editingSongName, {
 color: color !== "#f1f3f5" ? color : "",
 bg: bg !== "#1b1d22" ? bg : "",
