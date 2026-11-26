@@ -9,7 +9,8 @@
   header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#1b1d22;border-bottom:1px solid #2c303a;gap:8px;flex-shrink:0}
   .h-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
   .title{font-size:13px;font-weight:600;color:#8b92a0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase}
-  .h-act{display:flex;gap:6px;flex-shrink:0}
+  .h-act{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .clock{font-size:13px;font-weight:700;color:#e2e8f0;background:#121316;border:1px solid #2c303a;border-radius:6px;padding:4px 8px;font-variant-numeric:tabular-nums;letter-spacing:0.5px}
   button.btn{background:#252830;color:#f1f3f5;border:1px solid #2c303a;border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
   button.btn:hover{background:#2f333d}
   button.btn.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
@@ -64,6 +65,7 @@
     <div class="title" id="setlistTitle">Setlist</div>
   </div>
   <div class="h-act">
+    <div class="clock" id="clockDisplay">00:00</div>
     <button class="btn" id="btnResetOrder">↺ Ordem</button>
     <button class="btn" id="btnPalette">🎨 Estilo</button>
   </div>
@@ -116,6 +118,16 @@ function at(a,i){return Array.isArray(a)&&i>=0&&i<a.length?a.slice(i,i+1).shift(
 function norm(s){return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()}
 function focusList(){const l=el("songList");if(l)l.focus({preventScroll:true})}
 
+function updateClock(){
+  const c=el("clockDisplay");if(!c)return;
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,"0");
+  const mm=String(now.getMinutes()).padStart(2,"0");
+  c.textContent=hh+":"+mm;
+}
+updateClock();
+setInterval(updateClock,1000);
+
 function fillFonts(sel,inh){
   sel.innerHTML="";
   if(inh){const o=document.createElement("option");o.value="";o.textContent="Usar fonte padrão";sel.appendChild(o)}
@@ -131,17 +143,17 @@ COLORS.forEach(h=>{
 
 (function buildVK(){
   const bd=el("vkBoard"),inp=el("searchInput");
-  VK.forEach(r=>{
-    const d=document.createElement("div");d.className="vkr";
-    r.forEach(k=>{
-      const b=document.createElement("button");b.type="button";b.className="vkk";b.textContent=k;
-      if(k==="⌫")b.style.flex="1.6";
-      b.onclick=()=>{inp.value=k==="⌫"?inp.value.slice(0,-1):inp.value+k.toLowerCase();renderSearch()};
-      d.appendChild(b);
-    });
-    bd.appendChild(d);
-  });
-  const bot=document.createElement("div");bot.className="vkr";
+VK.forEach(r=>{
+const d=document.createElement("div");d.className="vkr";
+r.forEach(k=>{
+const b=document.createElement("button");b.type="button";b.className="vkk";b.textContent=k;
+if(k==="⌫")b.style.flex="1.6";
+b.onclick=()=>{inp.value=k==="⌫"?inp.value.slice(0,-1):inp.value+k.toLowerCase();renderSearch()};
+d.appendChild(b);
+});
+bd.appendChild(d);
+});
+const bot=document.createElement("div");bot.className="vkr";
 const bClr=document.createElement("button");bClr.type="button";bClr.className="vkk";bClr.textContent="Limpar";bClr.style.flex="1.4";bClr.onclick=()=>{inp.value="";renderSearch()};
 const bSpc=document.createElement("button");bSpc.type="button";bSpc.className="vkk";bSpc.textContent="Espaço";bSpc.style.flex="3.2";bSpc.onclick=()=>{inp.value+=" ";renderSearch()};
 const bCls=document.createElement("button");bCls.type="button";bCls.className="vkk";bCls.textContent="Fechar";bCls.style.flex="1.4";bCls.onclick=closeSearch;
