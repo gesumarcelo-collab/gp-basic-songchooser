@@ -28,6 +28,9 @@ class LibMain : public gigperformer::sdk::GigPerformerAPI
     explicit LibMain(LibraryHandle handle) : GigPerformerAPI(handle) {}
     ~LibMain() override;
 
+    void openWindow();
+    void triggerStepCommand(int delta);
+
   protected:
     void Initialization() override;
     void OnClose() override;
@@ -41,17 +44,14 @@ class LibMain : public gigperformer::sdk::GigPerformerAPI
     void OnSongPartChanged(int oldIndex, int newIndex) override;
     void OnSetlistChanged(const std::string &newSetlistName) override;
     void OnWidgetValueChanged(const std::string &widgetName, double newValue) override;
-    bool OnOSCMessage(const std::string &address, const std::vector<std::string> &args) override;
 
     int RequestGPScriptFunctionSignatureList(GPScript_AllowedLocations location,
                                              ExternalAPI_GPScriptFunctionDefinition **list) override;
 
   private:
-    void openWindow();
     void destroyWindow();
     void pushState(int songOverride, int partOverride);
     std::string buildStateJson(int songOverride, int partOverride);
-    void triggerStepCommand(int delta);
 
     std::unique_ptr<choc::ui::WebView> webview;
     std::unique_ptr<choc::ui::DesktopWindow> window;
