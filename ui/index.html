@@ -10,7 +10,7 @@
   .h-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
   .title{font-size:13px;font-weight:600;color:#8b92a0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase}
   .h-act{display:flex;align-items:center;gap:6px;flex-shrink:0}
-  .clock{font-size:13px;font-weight:700;color:#e2e8f0;background:#121316;border:1px solid #2c303a;border-radius:6px;padding:4px 8px;font-variant-numeric:tabular-nums;letter-spacing:0.5px}
+  .clock{font-size:18px;font-weight:800;color:#ffffff;background:#7f1d1d;border:1px solid #b91c1c;border-radius:6px;padding:3px 10px;font-variant-numeric:tabular-nums;letter-spacing:0.6px;line-height:1.15}
   button.btn{background:#252830;color:#f1f3f5;border:1px solid #2c303a;border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
   button.btn:hover{background:#2f333d}
   button.btn.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
@@ -142,7 +142,7 @@ COLORS.forEach(h=>{
 });
 
 (function buildVK(){
-  const bd=el("vkBoard"),inp=el("searchInput");
+const bd=el("vkBoard"),inp=el("searchInput");
 VK.forEach(r=>{
 const d=document.createElement("div");d.className="vkr";
 r.forEach(k=>{
