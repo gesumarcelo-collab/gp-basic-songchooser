@@ -41,6 +41,13 @@
     gap: 8px;
     flex-shrink: 0;
   }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
   .setlist-title {
     font-size: 13px;
     font-weight: 600;
@@ -66,6 +73,7 @@
     cursor: pointer;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
     transition: background 0.15s, border-color 0.15s;
   }
@@ -77,6 +85,11 @@
     background: var(--accent);
     border-color: var(--accent);
     color: #fff;
+  }
+  button.search-trigger {
+    padding: 5px 8px;
+    font-size: 14px;
+    flex-shrink: 0;
   }
   #globalPanel {
     display: none;
@@ -287,17 +300,19 @@
     color: #93c5fd;
     font-weight: 600;
   }
-  #songModalBackdrop {
+  #songModalBackdrop,
+  #searchModalBackdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: rgba(0, 0, 0, 0.72);
     display: none;
     align-items: center;
     justify-content: center;
     z-index: 1100;
-    padding: 16px;
+    padding: 12px;
   }
-  #songModalBackdrop.open {
+  #songModalBackdrop.open,
+  #searchModalBackdrop.open {
     display: flex;
   }
   .modal-card {
@@ -312,6 +327,136 @@
     gap: 11px;
     box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
   }
+  .search-card {
+    background: #181a1f;
+    border: 1px solid #3f4654;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 430px;
+    max-height: 94vh;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.8);
+  }
+  .search-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #searchInput {
+    flex: 1;
+    background: #111317;
+    color: #fff;
+    border: 1px solid #4b5563;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 16px;
+    outline: none;
+    user-select: text;
+  }
+  #searchInput:focus {
+    border-color: var(--accent);
+  }
+  #searchResults {
+    max-height: 185px;
+    min-height: 80px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: #121316;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px;
+  }
+  #searchResults::-webkit-scrollbar {
+    width: 6px;
+  }
+  #searchResults::-webkit-scrollbar-thumb {
+    background: #2f333d;
+    border-radius: 4px;
+  }
+  .search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 11px;
+    color: var(--text);
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .search-result-item:hover,
+  .search-result-item:active {
+    background: var(--accent);
+    border-color: #60a5fa;
+    color: #fff;
+  }
+  .search-result-num {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-dim);
+    min-width: 22px;
+  }
+  .search-result-item:hover .search-result-num {
+    color: #dbeafe;
+  }
+  .vk-board {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: #121316;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px;
+  }
+  .vk-row {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+  }
+  .vk-key {
+    flex: 1;
+    min-width: 0;
+    height: 38px;
+    background: #252830;
+    color: #f8fafc;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+  .vk-key:active {
+    background: var(--accent);
+    border-color: #93c5fd;
+    transform: scale(0.96);
+  }
+  .vk-key.wide {
+    flex: 1.7;
+    font-size: 13px;
+    background: #2c303a;
+  }
+  .vk-key.space {
+    flex: 3.5;
+    font-size: 13px;
+  }
+  .vk-key.danger {
+    flex: 1.5;
+    font-size: 13px;
+    background: #3f1d24;
+    border-color: #7f1d1d;
+    color: #fecaca;
+  }
   .modal-title {
     font-size: 13px;
     font-weight: 700;
@@ -325,103 +470,95 @@
     flex-wrap: wrap;
     gap: 6px;
   }
-  .swatch {
-    width: 22px;
-    height: 22px;
-    border-radius: 5px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    cursor: pointer;
-  }
-  .swatch:hover {
-    transform: scale(1.1);
-  }
-  .modal-footer {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: 4px;
-  }
-  .btn-secondary {
-    background: #2c303a;
-    color: var(--text);
-    border: none;
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .btn-primary {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 6px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .empty-state {
-    text-align: center;
-    color: var(--text-dim);
-    font-size: 13px;
-    padding: 32px 16px;
-  }
-</style>
-</head>
-<body>
-<header>
-  <div class="setlist-title" id="setlistTitle">Setlist</div>
-  <div class="header-actions">
-    <button class="icon-btn" id="btnResetOrder" title="Restaurar ordem original do Gig Performer">↺ Ordem</button>
-    <button class="icon-btn" id="btnPalette" title="Configurar cores, tamanho e fonte">🎨 Estilo</button>
-  </div>
-</header>
-<section id="globalPanel">
-  <div class="control-row">
-    <label for="globalFont">Fonte padrão</label>
-    <select id="globalFont"></select>
-  </div>
-  <div class="control-row">
-    <label for="globalSize">Tamanho</label>
-    <input type="range" id="globalSize" min="8" max="42" value="16">
-    <span class="size-badge" id="globalSizeVal">16px</span>
-  </div>
-  <div class="control-row" style="justify-content: flex-end;">
-    <button class="btn-secondary" id="btnResetStyles" style="font-size: 11px;">Limpar estilos individuais</button>
-  </div>
-</section>
-<main id="songList" tabindex="0"></main>
-<div id="partsMenu"></div>
-<div id="songModalBackdrop">
-  <div class="modal-card">
-    <div class="modal-title" id="modalSongTitle">Personalizar Música</div>
-    <div class="control-row">
-      <label>Cor Texto</label>
-      <input type="color" id="modalTextColor" value="#f1f3f5">
-      <label style="min-width:auto;">Fundo</label>
-      <input type="color" id="modalBgColor" value="#1b1d22">
-    </div>
-    <div class="swatches" id="bgSwatches"></div>
-    <div class="control-row">
-      <label for="modalFont">Fonte</label>
-      <select id="modalFont"></select>
-    </div>
-    <div class="control-row">
-      <label for="modalSize">Tamanho</label>
-      <input type="range" id="modalSize" min="8" max="42" value="16">
-      <span class="size-badge" id="modalSizeVal">Padrão</span>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" id="btnModalClear">Padrão</button>
-      <div style="display:flex; gap:6px;">
-        <button class="btn-secondary" id="btnModalCancel">Cancelar</button>
-        <button class="btn-primary" id="btnModalSave">Salvar</button>
-      </div>
-    </div>
-  </div>
-</div>
-<script>
-  const FONTS = [
+.swatch {
+width: 22px;
+height: 22px;
+border-radius: 5px;
+border: 2px solid rgba(255, 255, 255, 0.2);
+cursor: pointer;
+}
+.swatch:hover {
+transform: scale(1.1);
+}
+.modal-footer {
+display: flex;
+justify-content: space-between;
+gap: 8px;
+margin-top: 4px;
+}
+.btn-secondary {
+background: #2c303a;
+color: var(--text);
+border: none;
+border-radius: 6px;
+padding: 6px 10px;
+font-size: 12px;
+cursor: pointer;
+}
+.btn-primary {
+background: var(--accent);
+color: #fff;
+border: none;
+border-radius: 6px;
+padding: 6px 14px;
+font-size: 12px;
+font-weight: 600;
+cursor: pointer;
+}
+.empty-state {
+text-align: center;
+color: var(--text-dim);
+font-size: 13px;
+padding: 32px 16px;
+}
+
+
+🔍
+Setlist
+
+
+↺ Ordem
+🎨 Estilo
+
+Fonte padrão
+Tamanho
+16px
+
+
+Limpar estilos individuais
+
+
+
+
+
+
+
+✕
+
+
+
+
+
+
+
+Personalizar Música
+Cor Texto
+Fundo
+Fonte
+Tamanho
+Padrão
+
+
+Padrão
+
+Cancelar
+Salvar
+
+
+
+
+
+const FONTS = [
 { label: "Segoe UI (Padrão)", value: "'Segoe UI', system-ui, sans-serif" },
 { label: "Arial", value: "Arial, Helvetica, sans-serif" },
 { label: "Arial Black (Pesada)", value: "'Arial Black', Gadget, sans-serif" },
@@ -442,6 +579,12 @@ const SWATCH_COLORS = [
 "#78350f", "#581c87", "#831843", "#1e293b",
 "#0f766e", "#b45309", "#3730a3", "#3f3f46"
 ];
+const VK_ROWS = [
+["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+["Z", "X", "C", "V", "B", "N", "M", "-", "⌫"]
+];
 let gpState = { setlist: "Setlist", current: -1, currentPart: -1, songs: [] };
 let lastStateRaw = "";
 let isSyncing = false;
@@ -459,6 +602,16 @@ const listEl = document.getElementById("songList");
 if (listEl) {
 listEl.focus({ preventScroll: true });
 }
+}
+function isAnyModalOpen() {
+return document.getElementById("songModalBackdrop").classList.contains("open") ||
+document.getElementById("searchModalBackdrop").classList.contains("open");
+}
+function normalizeText(str) {
+return String(str || "")
+.normalize("NFD")
+.replace(/[\u0300-\u036f]/g, "")
+.toLowerCase();
 }
 function populateFontSelect(selectEl, includeInherit) {
 selectEl.innerHTML = "";
@@ -490,6 +643,123 @@ document.getElementById("modalBgColor").value = hex;
 };
 swatchesEl.appendChild(btn);
 });
+// Construir teclado virtual sensivel ao toque
+function buildVirtualKeyboard() {
+const board = document.getElementById("virtualKeyboard");
+board.innerHTML = "";
+const inputEl = document.getElementById("searchInput");
+VK_ROWS.forEach(rowKeys => {
+const rowEl = document.createElement("div");
+rowEl.className = "vk-row";
+rowKeys.forEach(k => {
+const keyBtn = document.createElement("button");
+keyBtn.type = "button";
+keyBtn.className = "vk-key" + (k === "⌫" ? " wide" : "");
+keyBtn.textContent = k;
+keyBtn.onclick = (e) => {
+e.preventDefault();
+if (k === "⌫") {
+inputEl.value = inputEl.value.slice(0, -1);
+} else {
+inputEl.value += k.toLowerCase();
+}
+renderSearchResults();
+};
+rowEl.appendChild(keyBtn);
+});
+board.appendChild(rowEl);
+});
+// Linha inferior: Limpar, Espaco, Fechar
+const bottomRow = document.createElement("div");
+bottomRow.className = "vk-row";
+const clearBtn = document.createElement("button");
+clearBtn.type = "button";
+clearBtn.className = "vk-key danger";
+clearBtn.textContent = "Limpar";
+clearBtn.onclick = (e) => {
+e.preventDefault();
+inputEl.value = "";
+renderSearchResults();
+};
+const spaceBtn = document.createElement("button");
+spaceBtn.type = "button";
+spaceBtn.className = "vk-key space";
+spaceBtn.textContent = "Espaço";
+spaceBtn.onclick = (e) => {
+e.preventDefault();
+inputEl.value += " ";
+renderSearchResults();
+};
+const doneBtn = document.createElement("button");
+doneBtn.type = "button";
+doneBtn.className = "vk-key wide";
+doneBtn.textContent = "Fechar";
+doneBtn.onclick = (e) => {
+e.preventDefault();
+closeSearchModal();
+};
+bottomRow.appendChild(clearBtn);
+bottomRow.appendChild(spaceBtn);
+bottomRow.appendChild(doneBtn);
+board.appendChild(bottomRow);
+}
+buildVirtualKeyboard();
+function openSearchModal() {
+closePartsMenu();
+const inputEl = document.getElementById("searchInput");
+inputEl.value = "";
+document.getElementById("searchModalBackdrop").classList.add("open");
+renderSearchResults();
+setTimeout(() => inputEl.focus(), 30);
+}
+function closeSearchModal() {
+document.getElementById("searchModalBackdrop").classList.remove("open");
+focusSongList();
+}
+function renderSearchResults() {
+const resultsEl = document.getElementById("searchResults");
+const query = normalizeText(document.getElementById("searchInput").value).trim();
+resultsEl.innerHTML = "";
+const ordered = getOrderedSongs();
+const matches = ordered
+.map((song, visualIdx) => ({ song, visualIdx }))
+.filter(entry => !query || normalizeText(entry.song.n).includes(query));
+if (matches.length === 0) {
+resultsEl.innerHTML = 'Nenhuma música encontrada.';
+return;
+}
+matches.forEach(entry => {
+const btn = document.createElement("button");
+btn.type = "button";
+btn.className = "search-result-item";
+const numSpan = document.createElement("span");
+numSpan.className = "search-result-num";
+numSpan.textContent = String(entry.visualIdx + 1).padStart(2, "0");
+const nameSpan = document.createElement("span");
+nameSpan.textContent = entry.song.n;
+btn.appendChild(numSpan);
+btn.appendChild(nameSpan);
+btn.onclick = () => {
+closeSearchModal();
+if (window.gp_selectSong) {
+window.gp_selectSong(entry.song.i);
+setTimeout(syncFromGP, 60);
+}
+};
+resultsEl.appendChild(btn);
+});
+}
+document.getElementById("btnSearch").onclick = (e) => {
+e.stopPropagation();
+openSearchModal();
+};
+document.getElementById("btnCloseSearch").onclick = closeSearchModal;
+document.getElementById("searchModalBackdrop").onclick = (e) => {
+if (e.target === document.getElementById("searchModalBackdrop")) {
+closeSearchModal();
+}
+};
+document.getElementById("searchInput").oninput = renderSearchResults;
 function saveSettings() {
 if (window.gp_saveSettings) {
 window.gp_saveSettings(JSON.stringify(settings));
@@ -578,9 +848,16 @@ setTimeout(syncFromGP, 60);
 }
 }
 window.addEventListener("keydown", (e) => {
-const modalOpen = document.getElementById("songModalBackdrop").classList.contains("open");
+if (e.key === "Escape") {
+if (document.getElementById("searchModalBackdrop").classList.contains("open")) {
+closeSearchModal();
+return;
+}
+closePartsMenu();
+return;
+}
 const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : "";
-if (modalOpen || tag === "SELECT" || tag === "INPUT") {
+if (isAnyModalOpen() || tag === "SELECT" || tag === "INPUT") {
 return;
 }
 if (e.key === "ArrowDown" || e.key === "PageDown") {
@@ -591,13 +868,10 @@ stepSong(1);
 e.preventDefault();
 e.stopPropagation();
 stepSong(-1);
-} else if (e.key === "Escape") {
-closePartsMenu();
 }
 }, true);
 window.addEventListener("focus", () => {
-const modalOpen = document.getElementById("songModalBackdrop").classList.contains("open");
-if (!modalOpen) {
+if (!isAnyModalOpen()) {
 focusSongList();
 }
 });
