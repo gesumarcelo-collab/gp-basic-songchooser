@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -24,6 +25,8 @@ using WebViewPtr = std::unique_ptr<choc::ui::WebView>;
 using WindowPtr = std::unique_ptr<choc::ui::DesktopWindow>;
 using CharBuf8 = std::array<char, 8>;
 using IntPair = std::pair<int, int>;
+
+LibMain *gInstance = nullptr;
 
 #ifdef _WIN32
 void pinCurrentDllInMemory()
@@ -225,19 +228,53 @@ std::string stringArg(const choc::value::ValueView &args)
     }
     return {};
 }
+
+extern "C" void gpScriptOpen(GPRuntimeEngine *)
+{
+    if (gInstance)
+        gInstance->InvokeMenu(0);
+}
+
+extern "C" void gpScriptNext(GPRuntimeEngine *)
+{
+    if (gInstance)
+        gInstance->OnOSCMessage("/SetlistQueue/Next", {});
+}
+
+extern "C" void gpScriptPrev(GPRuntimeEngine *)
+{
+    if (gInstance)
+        gInstance->OnOSCMessage("/SetlistQueue/Prev", {});
+}
+
+ExternalAPI_GPScriptFunctionDefinition gScriptFunctions[] = {
+    {"Open", "", "", "Abre a janela Setlist Queue", gpScriptOpen},
+    {"Next", "", "", "Avanca para a proxima musica da fila", gpScriptNext},
+    {"Prev", "", "", "Volta para a musica anterior da fila", gpScriptPrev}
+};
 } // namespace
 
 LibMain::~LibMain()
 {
     shuttingDown = true;
+    if (gInstance == this)
+        gInstance = nullptr;
     destroyWindow();
 }
 
 void LibMain::Initialization()
 {
+    gInstance = this;
     registerCallback("OnSongChanged");
     registerCallback("OnSongPartChanged");
     registerCallback("OnSetlistChanged");
+    registerCallback("OnWidgetValueChanged");
+    registerCallback("OnOSCMessage");
+
+    listenForWidget("SetlistQueue", true);
+    listenForWidget("SetlistQueueOpen", true);
+    listenForWidget("SetlistQueueNext", true);
+    listenForWidget("SetlistQueuePrev", true);
 }
 
 void LibMain::OnClose()
@@ -246,14 +283,16 @@ void LibMain::OnClose()
     unregisterCallback("OnSongChanged");
     unregisterCallback("OnSongPartChanged");
     unregisterCallback("OnSetlistChanged");
+    unregisterCallback("OnWidgetValueChanged");
+    unregisterCallback("OnOSCMessage");
     destroyWindow();
 }
 
 std::string LibMain::GetProductDescription()
 {
     return "<Library>"
-           "<Product Name=\"Setlist Queue\" Version=\"1.1.3\" BuildDate=\"" __DATE__ "\"></Product>"
-           "<Description>Janela flutuante com setlist, song parts, fila visual e cores por musica</Description>"
+           "<Product Name=\"SetlistQueue\" Version=\"1.3.0\" BuildDate=\"" __DATE__ "\"></Product>"
+           "<Description>Janela flutuante com setlist, song parts, busca e controle por widgets</Description>"
            "</Library>";
 }
 
@@ -271,6 +310,94 @@ void LibMain::InvokeMenu(int)
 {
     if (!shuttingDown)
         openWindow();
+}
+
+int LibMain::RequestGPScriptFunctionSignatureList(GPScript_AllowedLocations,
+                                                  ExternalAPI_GPScriptFunctionDefinition **list)
+{
+    *list = gScriptFunctions;
+    return static_cast<int>(sizeof(gScriptFunctions) / sizeof(gScriptFunctions));
+}
+
+void LibMain::triggerStepCommand(int delta)
+{
+    if (shuttingDown)
+        return;
+
+    if (webview && !closedByUser)
+    {
+        pendingStep.store(delta);
+        return;
+    }
+
+    const int count = getSongCount();
+    if (count <= 0)
+        return;
+
+    int cur = getCurrentSongIndex();
+    int target = (cur < 0) ? (delta > 0 ? 0 : count - 1) : (cur + delta);
+    if (target < 0)
+        target = 0;
+    if (target >= count)
+        target = count - 1;
+
+    if (!inSetlistMode())
+        switchToSetlistView();
+    switchToSong(target, 0);
+}
+
+void LibMain::OnWidgetValueChanged(const std::string &widgetName, double newValue)
+{
+    if (shuttingDown || newValue < 0.5)
+        return;
+
+    if (widgetName == "SetlistQueue" || widgetName == "SetlistQueueOpen")
+    {
+        openWindow();
+    }
+    else if (widgetName == "SetlistQueueNext")
+    {
+        triggerStepCommand(1);
+    }
+    else if (widgetName == "SetlistQueuePrev")
+    {
+        triggerStepCommand(-1);
+    }
+}
+
+bool LibMain::OnOSCMessage(const std::string &address, const std::vector<std::string> &args)
+{
+    if (shuttingDown)
+        return false;
+
+    if (!args.empty())
+    {
+        try
+        {
+            if (std::stod(args.front()) < 0.5)
+                return true;
+        }
+        catch (...)
+        {
+        }
+    }
+
+    if (address == "/SetlistQueue" || address == "/SetlistQueue/Open" || address == "/SetlistQueueOpen")
+    {
+        openWindow();
+        return true;
+    }
+    if (address == "/SetlistQueue/Next" || address == "/SetlistQueueNext")
+    {
+        triggerStepCommand(1);
+        return true;
+    }
+    if (address == "/SetlistQueue/Prev" || address == "/SetlistQueuePrev")
+    {
+        triggerStepCommand(-1);
+        return true;
+    }
+    return false;
 }
 
 void LibMain::OnSongChanged(int, int newIndex)
@@ -300,139 +427,124 @@ std::string LibMain::buildStateJson(int songOverride, int partOverride)
         count = 0;
 
     const int current = (songOverride != kNoOverride) ? songOverride : getCurrentSongIndex();
-    const int currentPart = (partOverride != kNoOverride) ? partOverride : getCurrentSongpartIndex();
-
-    std::string j = "{\"setlist\":\"" + jsonEscape(setlistName) +
-                    "\",\"current\":" + std::to_string(current) +
-                    ",\"currentPart\":" + std::to_string(currentPart) +
-                    ",\"songs\":[";
-
-    for (int i = 0; i < count; ++i)
-    {
-        if (i > 0)
-            j += ',';
-
-        j += "{\"i\":" + std::to_string(i) +
-             ",\"n\":\"" + jsonEscape(getSongName(i)) + "\"" +
-             ",\"parts\":[";
-
-        int pCount = getSongpartCount(i);
-        if (pCount < 0)
-            pCount = 0;
-
-        for (int p = 0; p < pCount; ++p)
-        {
-            if (p > 0)
-                j += ',';
-            j += "{\"i\":" + std::to_string(p) +
-                 ",\"n\":\"" + jsonEscape(getSongpartName(i, p)) + "\"}";
-        }
-        j += "]}";
-    }
-    j += "]}";
-    return j;
+const int currentPart = (partOverride != kNoOverride) ? partOverride : getCurrentSongpartIndex();
+const int step = pendingStep.exchange(0);
+std::string j = "{"setlist":"" + jsonEscape(setlistName) +
+"","current":" + std::to_string(current) +
+","currentPart":" + std::to_string(currentPart) +
+","step":" + std::to_string(step) +
+","songs":[";
+for (int i = 0; i < count; ++i)
+{
+if (i > 0)
+j += ',';
+j += "{"i":" + std::to_string(i) +
+","n":"" + jsonEscape(getSongName(i)) + """ +
+","parts":[";
+int pCount = getSongpartCount(i);
+if (pCount < 0)
+pCount = 0;
+for (int p = 0; p < pCount; ++p)
+{
+if (p > 0)
+j += ',';
+j += "{"i":" + std::to_string(p) +
+","n":"" + jsonEscape(getSongpartName(i, p)) + ""}";
 }
-
+j += "]}";
+}
+j += "]}";
+return j;
+}
 void LibMain::pushState(int songOverride, int partOverride)
 {
-    if (shuttingDown || !webview || closedByUser)
-        return;
-    try
-    {
-        webview->evaluateJavascript("window.gpPush&&window.gpPush(" + buildStateJson(songOverride, partOverride) + ");");
-    }
-    catch (...)
-    {
-    }
+if (shuttingDown || !webview || closedByUser)
+return;
+try
+{
+webview->evaluateJavascript("window.gpPush&&window.gpPush(" + buildStateJson(songOverride, partOverride) + ");");
 }
-
+catch (...)
+{
+}
+}
 void LibMain::destroyWindow()
 {
-    try
-    {
-        if (window)
-        {
-            window->windowClosed = nullptr;
-            window->setVisible(false);
-        }
-
-        if (shuttingDown)
-        {
-            webview.release();
-            window.release();
-        }
-        else
-        {
-            webview.reset();
-            window.reset();
-        }
-    }
-    catch (...)
-    {
-        webview.release();
-        window.release();
-    }
-    closedByUser = false;
+try
+{
+if (window)
+{
+window->windowClosed = nullptr;
+window->setVisible(false);
 }
-
+if (shuttingDown)
+{
+webview.release();
+window.release();
+}
+else
+{
+webview.reset();
+window.reset();
+}
+}
+catch (...)
+{
+webview.release();
+window.release();
+}
+closedByUser = false;
+}
 void LibMain::openWindow()
 {
-    if (shuttingDown)
-        return;
-
+if (shuttingDown)
+return;
 #ifdef _WIN32
-    pinCurrentDllInMemory();
+pinCurrentDllInMemory();
 #endif
-
-    if (window && closedByUser)
-        destroyWindow();
-
-    if (window)
-    {
-        window->setVisible(true);
-        window->toFront();
-        return;
-    }
-
-    try
-    {
-        webview = WebViewPtr(new choc::ui::WebView());
-    }
-    catch (...)
-    {
-        webview.reset();
-    }
-
-    if (!webview || webview->getViewHandle() == nullptr)
-    {
+if (window && closedByUser)
+destroyWindow();
+if (window)
+{
+window->setVisible(true);
+window->toFront();
+return;
+}
+try
+{
+webview = WebViewPtr(new choc::ui::WebView());
+}
+catch (...)
+{
+webview.reset();
+}
+if (!webview || webview->getViewHandle() == nullptr)
+{
 #ifdef _WIN32
-        MessageBoxA(nullptr, "WebView2 Runtime nao encontrado no Windows. Instale o Microsoft Edge WebView2 Runtime.", "Setlist Queue", MB_OK | MB_ICONERROR);
+MessageBoxA(nullptr, "WebView2 Runtime nao encontrado no Windows. Instale o Microsoft Edge WebView2 Runtime.", "Setlist Queue", MB_OK | MB_ICONERROR);
 #endif
-        webview.reset();
-        return;
-    }
-
-    webview->bind("gp_getState", [this](const choc::value::ValueView &) -> choc::value::Value {
-        if (shuttingDown)
-            return choc::value::createString("{}");
-        return choc::value::createString(buildStateJson(kNoOverride, kNoOverride));
-    });
-
-    webview->bind("gp_selectSong", [this](const choc::value::ValueView &args) -> choc::value::Value {
-        if (shuttingDown)
-            return choc::value::createString("0");
-        const int idx = intArg(args, -1);
-        if (idx >= 0 && idx < getSongCount())
-        {
-            if (!inSetlistMode())
-                switchToSetlistView();
-            switchToSong(idx, 0);
-        }
-        return choc::value::createString("1");
-    });
-
-    webview->bind("gp_selectSongPart", [this](const choc::value::ValueView &args) -> choc::value::Value {
-        if (shuttingDown)
+webview.reset();
+return;
+}
+webview->bind("gp_getState", [this](const choc::value::ValueView &) -> choc::value::Value {
+if (shuttingDown)
+return choc::value::createString("{}");
+return choc::value::createString(buildStateJson(kNoOverride, kNoOverride));
+});
+webview->bind("gp_selectSong", [this](const choc::value::ValueView &args) -> choc::value::Value {
+if (shuttingDown)
+return choc::value::createString("0");
+const int idx = intArg(args, -1);
+if (idx >= 0 && idx < getSongCount())
+{
+if (!inSetlistMode())
+switchToSetlistView();
+switchToSong(idx, 0);
+}
+return choc::value::createString("1");
+});
+webview->bind("gp_selectSongPart", [this](const choc::value::ValueView &args) -> choc::value::Value {
+if (shuttingDown)
 return choc::value::createString("0");
 const auto [songIdx, partIdx] = twoIntArgs(args);
 if (songIdx >= 0 && songIdx < getSongCount())
