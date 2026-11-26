@@ -117,7 +117,9 @@ let settings={globalFont:DEF_FONT,globalSize:16,customOrder:{},songStyles:{}};
 let lastKey="",syncing=false,dragging=false,editName=null,dragIdx=null,lastColCount=0;
 
 function el(id){return document.getElementById(id)}
-function at(a,i){return Array.isArray(a)&&i>=0&&i<a.length?a.slice(i,i+1).shift():undefined}
+function gt(a,b){return !(a===b)&&Math.max(a,b)===a}
+function lt(a,b){return !(a===b)&&Math.min(a,b)===a}
+function at(a,i){return Array.isArray(a)&&!lt(i,0)&&lt(i,a.length)?a.slice(i,i+1).shift():undefined}
 function norm(s){return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()}
 function focusList(){const l=el("songList");if(l)l.focus({preventScroll:true})}
 function getColCount(){const w=el("songList")?el("songList").clientWidth:window.innerWidth;return Math.max(1,Math.floor((w+8)/238))}
@@ -132,11 +134,10 @@ setInterval(updateClock,1000);
 
 window.addEventListener("resize",()=>{
   const c=getColCount();
-  if(!(c===lastColCount)){lastColCount=c;render()}
+if(!(c===lastColCount)){lastColCount=c;render()}
 });
-
 function fillFonts(sel,inh){
-  sel.innerHTML="";
+sel.innerHTML="";
 if(inh){const o=document.createElement("option");o.value="";o.textContent="Usar fonte padrão";sel.appendChild(o)}
 FONTS.forEach(f=>{const o=document.createElement("option");o.value=f.v;o.textContent=f.l;o.style.fontFamily=f.v;sel.appendChild(o)});
 }
@@ -195,7 +196,7 @@ function buildStepQueue(){
 const ord=getOrdered();
 const q=[];
 ord.forEach(song=>{
-const parts=Array.isArray(song.parts)&&song.parts.length>0?song.parts:[{i:0,n:""}];
+const parts=Array.isArray(song.parts)&>(song.parts.length,0)?song.parts:[{i:0,n:""}];
 parts.forEach(p=>{
 q.push({songIdx:song.i,partIdx:p.i});
 });
@@ -205,10 +206,10 @@ return q;
 function stepSong(d){
 const q=buildStepQueue();
 if(!q.length)return;
-const curPart=gpState.currentPart<0?0:gpState.currentPart;
+const curPart=lt(gpState.currentPart,0)?0:gpState.currentPart;
 let curPos=q.findIndex(item=>item.songIdx===gpState.current&&item.partIdx===curPart);
 if(curPos===-1)curPos=q.findIndex(item=>item.songIdx===gpState.current);
-const tgtPos=curPos===-1?(d>0?0:q.length-1):Math.max(0,Math.min(q.length-1,curPos+d));
+const tgtPos=curPos===-1?(gt(d,0)?0:q.length-1):Math.max(0,Math.min(q.length-1,curPos+d));
 const target=at(q,tgtPos);
 if(!target)return;
 el("partsMenu").classList.remove("open");
@@ -221,7 +222,7 @@ setTimeout(syncGP,60);
 }
 }
 function applyState(p){
-if(!p||typeof p!=="object")return;
+if(!p||!(typeof p==="object"))return;
 const stp=Number(p.step)||0;
 const k=JSON.stringify({s:p.setlist,c:p.current,p:p.currentPart,l:p.songs});
 if(!(k===lastKey)){lastKey=k;gpState=p;render()}
@@ -242,14 +243,14 @@ const curScroll=list.scrollTop;
 const preferredTop=Math.round(viewH0.22);
 const bottomTrigger=curScroll+viewH0.58;
 const topTrigger=curScroll+12;
-if(itemBottom>bottomTrigger||itemTop>curScroll+viewH*0.48){
+if(gt(itemBottom,bottomTrigger)||gt(itemTop,curScroll+viewH*0.48)){
 const targetScroll=Math.max(0,itemTop-preferredTop);
-if(Math.abs(targetScroll-curScroll)>18){
+if(gt(Math.abs(targetScroll-curScroll),18)){
 list.scrollTo({top:targetScroll,behavior:"smooth"});
 }
-}else if(itemTop<topTrigger){
+}else if(lt(itemTop,topTrigger)){
 const targetScroll=Math.max(0,itemTop-preferredTop);
-if(Math.abs(targetScroll-curScroll)>18){
+if(gt(Math.abs(targetScroll-curScroll),18)){
 list.scrollTo({top:targetScroll,behavior:"smooth"});
 }
 }
@@ -264,7 +265,7 @@ if(!ord.length){list.innerHTML='Nenhuma música encontrada no setlist atual do G
 const numCols=getColCount();
 lastColCount=numCols;
 const cols=[];
-for(let c=0;c<numCols;c++){
+for(let c=0;lt(c,numCols);c++){
 const colEl=document.createElement("div");
 colEl.className="song-col";
 list.appendChild(colEl);
@@ -273,7 +274,7 @@ cols.push(colEl);
 let curEl=null;
 ord.forEach((song,idx)=>{
 const isCur=song.i===gpState.current;
-const hasParts=isCur&&Array.isArray(song.parts)&&song.parts.length>1;
+const hasParts=isCur&&Array.isArray(song.parts)&>(song.parts.length,1);
 const st=Object.prototype.hasOwnProperty.call(settings.songStyles,song.n)?Reflect.get(settings.songStyles,song.n):{};
 const item=document.createElement("div");item.className="song"+(isCur?" current":"")+(hasParts?" has-parts":"");item.draggable=true;
 if(isCur)curEl=item;
