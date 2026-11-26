@@ -19,13 +19,14 @@
   .row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}
   .row label{color:#8b92a0;min-width:68px}
   .row select,.row input[type=range]{flex:1;background:#1b1d22;color:#f1f3f5;border:1px solid #2c303a;border-radius:5px;padding:4px;font-size:12px}
-  #songList{flex:1;overflow-y:auto;padding:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));grid-auto-rows:auto;align-content:start;gap:8px;outline:none}
+  #songList{flex:1;overflow-y:auto;padding:10px;display:flex;align-items:flex-start;gap:8px;outline:none}
   #songList::-webkit-scrollbar{width:7px}
   #songList::-webkit-scrollbar-thumb{background:#2f333d;border-radius:4px}
-  .song{display:flex;align-items:center;background:#1b1d22;border:1px solid #2c303a;border-left:5px solid transparent;border-radius:8px;padding:10px 11px;cursor:pointer;gap:8px;min-width:0;min-height:48px;height:auto;touch-action:manipulation}
+  .song-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+  .song{display:flex;align-items:center;background:#1b1d22;border:1px solid #2c303a;border-left:5px solid transparent;border-radius:8px;padding:10px 11px;cursor:pointer;gap:8px;min-width:0;min-height:48px;height:auto;flex-shrink:0;touch-action:manipulation}
   .song:hover{background:#252830}
   .song.current{background:#1e3a8a;border-color:#60a5fa;box-shadow:0 0 0 1px rgba(96,165,250,.3)}
-  .song.current.has-parts{grid-column:1/-1;align-items:flex-start;padding:12px 13px}
+  .song.current.has-parts{align-items:flex-start;padding:12px 11px}
   .song.current.has-parts .sname{white-space:normal;overflow:visible;text-overflow:unset}
   .song.drag-over{outline:2px dashed #3b82f6;outline-offset:-2px}
   .grip{color:#8b92a0;cursor:grab;font-size:14px;padding:2px;flex-shrink:0}
@@ -33,10 +34,10 @@
   .song.current .num{color:#93c5fd}
   .smain{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
   .sname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
-  .parts{display:flex;flex-wrap:wrap;gap:7px;width:100%}
-  .chip{background:rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.28);color:#f1f5f9;border-radius:6px;padding:7px 13px;font-size:14px;font-weight:600;cursor:pointer;line-height:1.2}
-  .chip:hover{background:rgba(59,130,246,.48);border-color:#93c5fd}
-  .chip.active{background:#3b82f6;border-color:#bfdbfe;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+  .parts{display:flex;flex-direction:column;gap:6px;width:100%}
+  .chip{width:100%;text-align:left;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.3);color:#f8fafc;border-radius:6px;padding:8px 12px;font-size:15px;font-weight:600;cursor:pointer;line-height:1.25}
+  .chip:hover{background:rgba(59,130,246,.52);border-color:#93c5fd}
+  .chip.active{background:#3b82f6;border-color:#bfdbfe;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
   .sedit{display:none;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer;flex-shrink:0}
   body.edit-mode .sedit{display:inline-block}
   #partsMenu{position:fixed;display:none;background:#1f2229;border:1px solid #3f4654;border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,.65);min-width:200px;z-index:1000;padding:6px;flex-direction:column;gap:3px}
@@ -57,7 +58,7 @@
   .vkk:active{background:#3b82f6}
   .swatches{display:flex;flex-wrap:wrap;gap:6px}
   .sw{width:22px;height:22px;border-radius:5px;border:2px solid rgba(255,255,255,.2);cursor:pointer}
-  .empty{grid-column:1/-1;text-align:center;color:#8b92a0;font-size:13px;padding:28px 12px}
+  .empty{width:100%;text-align:center;color:#8b92a0;font-size:13px;padding:28px 12px}
 </style>
 </head>
 <body>
@@ -113,27 +114,31 @@ const VK=[["1","2","3","4","5","6","7","8","9","0"],["Q","W","E","R","T","Y","U"
 
 let gpState={setlist:"Setlist",current:-1,currentPart:-1,songs:[]};
 let settings={globalFont:DEF_FONT,globalSize:16,customOrder:{},songStyles:{}};
-let lastKey="",syncing=false,dragging=false,editName=null,dragIdx=null;
+let lastKey="",syncing=false,dragging=false,editName=null,dragIdx=null,lastColCount=0;
 
 function el(id){return document.getElementById(id)}
 function at(a,i){return Array.isArray(a)&&i>=0&&i<a.length?a.slice(i,i+1).shift():undefined}
 function norm(s){return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()}
 function focusList(){const l=el("songList");if(l)l.focus({preventScroll:true})}
+function getColCount(){const w=el("songList")?el("songList").clientWidth:window.innerWidth;return Math.max(1,Math.floor((w+8)/238))}
 
 function updateClock(){
   const c=el("clockDisplay");if(!c)return;
   const now=new Date();
-  const hh=String(now.getHours()).padStart(2,"0");
-  const mm=String(now.getMinutes()).padStart(2,"0");
-  c.textContent=hh+":"+mm;
+  c.textContent=String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
 }
 updateClock();
 setInterval(updateClock,1000);
 
+window.addEventListener("resize",()=>{
+  const c=getColCount();
+  if(c!==lastColCount){lastColCount=c;render()}
+});
+
 function fillFonts(sel,inh){
   sel.innerHTML="";
-  if(inh){const o=document.createElement("option");o.value="";o.textContent="Usar fonte padrão";sel.appendChild(o)}
-  FONTS.forEach(f=>{const o=document.createElement("option");o.value=f.v;o.textContent=f.l;o.style.fontFamily=f.v;sel.appendChild(o)});
+if(inh){const o=document.createElement("option");o.value="";o.textContent="Usar fonte padrão";sel.appendChild(o)}
+FONTS.forEach(f=>{const o=document.createElement("option");o.value=f.v;o.textContent=f.l;o.style.fontFamily=f.v;sel.appendChild(o)});
 }
 fillFonts(el("globalFont"),false);
 fillFonts(el("mFont"),true);
@@ -211,6 +216,15 @@ el("setlistTitle").textContent=gpState.setlist||"Setlist";
 const list=el("songList");list.innerHTML="";
 const ord=getOrdered();
 if(!ord.length){list.innerHTML='Nenhuma música encontrada no setlist atual do Gig Performer.';return}
+const numCols=getColCount();
+lastColCount=numCols;
+const cols=[];
+for(let c=0;c<numCols;c++){
+const colEl=document.createElement("div");
+colEl.className="song-col";
+list.appendChild(colEl);
+cols.push(colEl);
+}
 let curEl=null;
 ord.forEach((song,idx)=>{
 const isCur=song.i===gpState.current;
@@ -250,15 +264,16 @@ if(dragIdx===null||dragIdx===idx)return;
 const curL=getOrdered(),mv=curL.splice(dragIdx,1).shift();curL.splice(idx,0,mv);
 Reflect.set(settings.customOrder,gpState.setlist||"default",curL.map(s=>s.n));saveSet();render();
 };
-list.appendChild(item);
+const targetCol=at(cols,idx%numCols);
+if(targetCol)targetCol.appendChild(item);
 });
 if(curEl)curEl.scrollIntoView({block:"nearest",behavior:"smooth"});
 }
-function openParts(x,y,song){
-const m=el("partsMenu");m.innerHTML="";
-const h=document.createElement("div");h.className="phead";h.textContent="Song Parts — "+song.n;m.appendChild(h);
-(song.parts||[]).forEach(p=>{
-const b=document.createElement("button");b.type="button";b.className="popt";b.textContent=p.n;
+
+
+
+
+
 b.onclick=e=>{e.stopPropagation();m.classList.remove("open");focusList();if(window.gp_selectSongPart){window.gp_selectSongPart([song.i,p.i]);setTimeout(syncGP,60)}};
 m.appendChild(b);
 });
