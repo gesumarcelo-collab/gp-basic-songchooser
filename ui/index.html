@@ -69,11 +69,17 @@
   </div>
   <div class="h-act">
     <div class="clock" id="clockDisplay">00:00</div>
-    <button class="btn" id="btnResetOrder">↺ Ordem</button>
-    <button class="btn" id="btnPalette">🎨 Estilo</button>
+    <button class="btn" id="btnResetOrder" title="Restaurar ordem original">↺ Ordem</button>
+    <button class="btn" id="btnPalette" title="Configurar cores, fonte e tamanho">🎨 Estilo</button>
   </div>
 </header>
 <section id="globalPanel">
+  <div class="row">
+    <label>Cor Texto</label><input type="color" id="globalColor" value="#f1f3f5">
+    <label style="min-width:auto">Cor Fundo</label><input type="color" id="globalBg" value="#1b1d22">
+    <button class="btn" id="btnResetGlobalColors" style="padding:3px 7px;font-size:11px">Padrão</button>
+  </div>
+  <div class="swatches" id="globalSwatches"></div>
   <div class="row"><label>Fonte</label><select id="globalFont"></select></div>
   <div class="row"><label>Tamanho</label><input type="range" id="globalSize" min="8" max="42" value="16"><span id="globalSizeVal">16px</span></div>
   <div class="row" style="justify-content:flex-end"><button class="btn" id="btnResetStyles">Limpar estilos individuais</button></div>
@@ -113,7 +119,7 @@ var COLORS = ["#1b1d22","#1e3a8a","#065f46","#7f1d1d","#78350f","#581c87","#8318
 var VK = [["1","2","3","4","5","6","7","8","9","0"],["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L"],["Z","X","C","V","B","N","M","-","⌫"]];
 
 var gpState = {setlist:"Setlist",current:-1,currentPart:-1,songs:[]};
-var settings = {globalFont:DEF_FONT,globalSize:16,customOrder:{},songStyles:{}};
+var settings = {globalFont:DEF_FONT,globalSize:16,globalColor:"",globalBg:"",customOrder:{},songStyles:{}};
 var lastKey = "", syncing = false, dragging = false, editName = null, dragIdx = null, lastColCount = 0;
 
 function el(id) { return document.getElementById(id); }
@@ -123,12 +129,11 @@ function at(a, i) { return Array.isArray(a) && !lt(i, 0) && lt(i, a.length) ? a.
 function norm(s) { return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 function focusList() { var l = el("songList"); if (l) l.focus({preventScroll:true}); }
 function getColCount() { var w = el("songList") ? el("songList").clientWidth : window.innerWidth; return Math.max(1, Math.floor((w + 8) / 238)); }
-
 function updateClock() {
-  var c = el("clockDisplay");
-  if (!c) return;
-  var now = new Date();
-  c.textContent = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+var c = el("clockDisplay");
+if (!c) return;
+var now = new Date();
+c.textContent = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
 }
 updateClock();
 setInterval(updateClock, 1000);
@@ -155,12 +160,23 @@ sel.appendChild(o);
 fillFonts(el("globalFont"), false);
 fillFonts(el("mFont"), true);
 COLORS.forEach(function(h) {
-var b = document.createElement("button");
-b.type = "button";
-b.className = "sw";
-b.style.background = h;
-b.onclick = function() { el("mBg").value = h; };
-el("swatches").appendChild(b);
+var b1 = document.createElement("button");
+b1.type = "button";
+b1.className = "sw";
+b1.style.background = h;
+b1.onclick = function() {
+el("globalBg").value = h;
+settings.globalBg = !(h === "#1b1d22") ? h : "";
+saveSet();
+render();
+};
+el("globalSwatches").appendChild(b1);
+var b2 = document.createElement("button");
+b2.type = "button";
+b2.className = "sw";
+b2.style.background = h;
+b2.onclick = function() { el("mBg").value = h; };
+el("swatches").appendChild(b2);
 });
 (function buildVK() {
 var bd = el("vkBoard"), inp = el("searchInput");
@@ -351,8 +367,11 @@ var item = document.createElement("div");
 item.className = "song" + (isCur ? " current" : "") + (hasParts ? " has-parts" : "");
 item.draggable = true;
 if (isCur) curEl = item;
-if (st.bg) item.style.background = st.bg;
-if (st.color) { item.style.color = st.color; item.style.borderLeftColor = st.color; }
+var cardBg = st.bg || settings.globalBg || "";
+var cardColor = st.color || settings.globalColor || "";
+if (cardBg && !isCur) item.style.background = cardBg;
+if (cardBg && isCur) { item.style.background = cardBg; item.style.boxShadow = "0 0 0 2px #60a5fa"; }
+if (cardColor) { item.style.color = cardColor; item.style.borderLeftColor = cardColor; }
 var grip = document.createElement("span"); grip.className = "grip"; grip.textContent = "⋮⋮";
 var num = document.createElement("span"); num.className = "num"; num.textContent = String(idx + 1).padStart(2, "0");
 var main = document.createElement("div"); main.className = "smain";
@@ -440,16 +459,46 @@ var o = el("globalPanel").classList.toggle("open");
 el("btnPalette").classList.toggle("active", o);
 document.body.classList.toggle("edit-mode", o);
 };
+el("globalColor").oninput = function(e) {
+settings.globalColor = !(e.target.value === "#f1f3f5") ? e.target.value : "";
+saveSet(); render();
+};
+el("globalBg").oninput = function(e) {
+settings.globalBg = !(e.target.value === "#1b1d22") ? e.target.value : "";
+saveSet(); render();
+};
+el("btnResetGlobalColors").onclick = function() {
+settings.globalColor = "";
+settings.globalBg = "";
+el("globalColor").value = "#f1f3f5";
+el("globalBg").value = "#1b1d22";
+saveSet(); render();
+};
 el("globalFont").onchange = function(e) { settings.globalFont = e.target.value; saveSet(); render(); };
 el("globalSize").oninput = function(e) { var v = Math.max(8, Math.min(42, Number(e.target.value) || 16)); settings.globalSize = v; el("globalSizeVal").textContent = v + "px"; saveSet(); render(); };
-el("btnResetOrder").onclick = function() { Reflect.deleteProperty(settings.customOrder, gpState.setlist || "default"); saveSet(); render(); };
-el("btnResetStyles").onclick = function() { settings.songStyles = {}; saveSet(); render(); };
+el("btnResetOrder").onclick = function(e) {
+if (e) e.stopPropagation();
+settings.customOrder = {};
+lastKey = "";
+saveSet();
+syncGP();
+render();
+focusList();
+};
+el("btnResetStyles").onclick = function() {
+settings.songStyles = {};
+settings.globalColor = "";
+settings.globalBg = "";
+el("globalColor").value = "#f1f3f5";
+el("globalBg").value = "#1b1d22";
+saveSet(); render();
+};
 function openModal(n) {
 editName = n;
 var st = Object.prototype.hasOwnProperty.call(settings.songStyles, n) ? Reflect.get(settings.songStyles, n) : {};
 el("modalTitle").textContent = n;
-el("mColor").value = st.color || "#f1f3f5";
-el("mBg").value = st.bg || "#1b1d22";
+el("mColor").value = st.color || settings.globalColor || "#f1f3f5";
+el("mBg").value = st.bg || settings.globalBg || "#1b1d22";
 el("mFont").value = st.font || "";
 var sz = st.size || settings.globalSize;
 el("mSize").value = sz;
@@ -478,6 +527,8 @@ function startApp() {
 el("globalFont").value = settings.globalFont;
 el("globalSize").value = settings.globalSize;
 el("globalSizeVal").textContent = settings.globalSize + "px";
+el("globalColor").value = settings.globalColor || "#f1f3f5";
+el("globalBg").value = settings.globalBg || "#1b1d22";
 syncGP();
 render();
 focusList();
@@ -489,13 +540,13 @@ if (window.gp_loadSettings) {
 var res = window.gp_loadSettings();
 if (res && typeof res.then === "function") {
 res.then(function(r) {
-if (r) { try { var p = JSON.parse(r); settings = {globalFont: p.globalFont || DEF_FONT, globalSize: Number(p.globalSize) || 16, customOrder: p.customOrder || {}, songStyles: p.songStyles || {}}; } catch (e) {} }
+if (r) { try { var p = JSON.parse(r); settings = {globalFont: p.globalFont || DEF_FONT, globalSize: Number(p.globalSize) || 16, globalColor: p.globalColor || "", globalBg: p.globalBg || "", customOrder: p.customOrder || {}, songStyles: p.songStyles || {}}; } catch (e) {} }
 startApp();
 }, function() { startApp(); });
 return;
 } else if (res) {
 var p = JSON.parse(res);
-settings = {globalFont: p.globalFont || DEF_FONT, globalSize: Number(p.globalSize) || 16, customOrder: p.customOrder || {}, songStyles: p.songStyles || {}};
+settings = {globalFont: p.globalFont || DEF_FONT, globalSize: Number(p.globalSize) || 16, globalColor: p.globalColor || "", globalBg: p.globalBg || "", customOrder: p.customOrder || {}, songStyles: p.songStyles || {}};
 }
 }
 } catch (e) {}
